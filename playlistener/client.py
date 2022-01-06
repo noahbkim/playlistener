@@ -32,6 +32,10 @@ class PlayListener(disnake.Client):
             await message.channel.send(f"https://open.spotify.com/playlist/{self.playlist_id}")
             return
 
+        if message.content.startswith("?ignore"):
+            await message.channel.send(f"fine :pleading_face:")
+            return
+
         uris = tuple(find_spotify_track_links(message.content))
         if len(uris) == 0:
             return

@@ -1,4 +1,5 @@
 import disnake
+import time
 
 from .spotify import *
 
@@ -44,8 +45,9 @@ def main(credentials: dict):
 
     intents = disnake.Intents.default()
     intents.members = True
+    spotify_session = SpotifySession(credentials["spotify"]["id"], credentials["spotify"]["secret"])
     client = PlayListener(
-        spotify_session=SpotifySession(credentials["spotify"]["id"], credentials["spotify"]["secret"]),
+        spotify_session=spotify_session,
         playlist_id=credentials["spotify"]["playlist"],
         intents=intents)
     client.run(credentials["discord"]["token"])

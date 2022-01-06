@@ -1,85 +1,46 @@
-# This example requires the 'members' privileged intents
-
-import random
-from pathlib import Path
-
-import disnake
 import json
-from disnake.ext import commands
+import disnake
 
-with open("credentials.json") as file:
+from . import *
+
+
+with open("credentials.local.json") as file:
     credentials = json.load(file)
 
 
-description = """An example bot to showcase the disnake.ext.commands extension
-module.
+class PlayListener(disnake.Client):
+    """Listens to user messages and looks for links."""
 
-There are a number of utility commands being showcased here."""
+    async def on_ready(self):
+        """Called when the bot is authenticated."""
+
+        print(f"logged in as {self.user} (ID: {self.user.id})")
+
+    async def on_message(self, message):
+        """Invoked when you receive a message."""
+
+        if message.author.id == self.user.id:
+            return
+
+        if message.content.startswith("?link"):
+            await message.channel.send(f"""https://open.spotify.com/playlist/{credentials["spotify"]["playlist"]}""")
+            return
+
+        track_links = tuple(find_spotify_track_links(message.content))
+        if len(track_links) == 0:
+            requests.post("https://api.spotify.com/")
+
+        await message.channel.send(f"found {len(track_links)} Spotify links o_o")
+
 
 intents = disnake.Intents.default()
 intents.members = True
 
-bot = commands.Bot(command_prefix="?", description=description, intents=intents)
+# client = PlayListener(intents=intents)
+# client.run(credentials["discord"]["token"])
 
-
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
-    print("------")
-
-
-@bot.command()
-async def add(ctx, left: int, right: int):
-    """Adds two numbers together."""
-    await ctx.send(left + right)
-
-
-@bot.command()
-async def roll(ctx, dice: str):
-    """Rolls a dice in NdN format."""
-    try:
-        rolls, limit = map(int, dice.split("d"))
-    except Exception:
-        await ctx.send("Format has to be in NdN!")
-        return
-
-    result = ", ".join(str(random.randint(1, limit)) for r in range(rolls))
-    await ctx.send(result)
-
-
-@bot.command(description="For when you wanna settle the score some other way")
-async def choose(ctx, *choices: str):
-    """Chooses between multiple choices."""
-    await ctx.send(random.choice(choices))
-
-
-@bot.command()
-async def repeat(ctx, times: int, content="repeating..."):
-    """Repeats a message multiple times."""
-    for i in range(times):
-        await ctx.send(content)
-
-
-@bot.command()
-async def joined(ctx, member: disnake.Member):
-    """Says when a member joined."""
-    await ctx.send(f"{member.name} joined in {member.joined_at}")
-
-
-@bot.group()
-async def cool(ctx):
-    """Says if a user is cool.
-
-    In reality this just checks if a subcommand is being invoked.
-    """
-    if ctx.invoked_subcommand is None:
-        await ctx.send(f"No, {ctx.subcommand_passed} is not cool")
-
-
-@cool.command(name="bot")
-async def _bot(ctx):
-    """Is the bot cool?"""
-    await ctx.send("Yes, the bot is cool.")
-
-
-bot.run(credentials["token"])
+token = request_access_token(
+    credentials["spotify"]["id"],
+    credentials["spotify"]["secret"],
+    credentials["spotify"]["code"])
+add_items_to_playlist(token, credentials["spotify"]["playlist"], ["spotify:track:4X9JAGRyJnnHN3KUjq1r9C"])

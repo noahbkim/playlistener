@@ -1,7 +1,25 @@
 import disnake
-import time
+import random
 
 from .spotify import *
+
+CONFIRMATION_MESSAGES = (
+    "i love that song :smiley_cat:",
+    "great pick :heart_eyes_cat:",
+    "ain't no way :skull:",
+    "if you insist :pouting_cat:",
+    "not you actually listening to this :joy_cat:",
+    "this isn't even music :scream_cat:",
+    "adding now :smile_cat:",
+    "got it :smile_cat:",
+    "noted :smile_cat:",
+    "fantastic taste :smiley_cat:",
+    "ballsacke :joy_cat:",
+    "good choice :smile_cat:",
+    "on it :smile_cat:",
+    "added :smile_cat:",
+    "i'll add this right away :smile_cat:",
+    "seek therapy :crying_cat_face:")
 
 
 class PlayListener(disnake.Client):
@@ -9,6 +27,7 @@ class PlayListener(disnake.Client):
 
     playlist_id: str
     spotify_session: SpotifySession
+    last_confirmation_message_index: int = -1
 
     def __init__(self, playlist_id: str, spotify_session: SpotifySession, *args, **kwargs):
         """Initialize the client with its target playlist ID."""
@@ -33,7 +52,6 @@ class PlayListener(disnake.Client):
             return
 
         if message.content.startswith("?ignore"):
-            await message.channel.send(f"fine :pleading_face:")
             return
 
         uris = tuple(find_spotify_track_links(message.content))
@@ -41,7 +59,15 @@ class PlayListener(disnake.Client):
             return
 
         self.spotify_session.add_items_to_playlist(self.playlist_id, uris)
-        await message.channel.send(f"added {len(uris)} items to spotify:playlist:{self.playlist_id}")
+        await message.channel.send(self._get_confirmation_message())
+
+    def _get_confirmation_message(self) -> str:
+        """Get a random confirmation message without repeating."""
+
+        index = random.randint(0, len(CONFIRMATION_MESSAGES) - 1)
+        if index == self.last_confirmation_message_index:
+            index = (index + 1) % len(CONFIRMATION_MESSAGES)
+        return CONFIRMATION_MESSAGES[index]
 
 
 def main(credentials: dict):

@@ -1,46 +1,30 @@
+import argparse
 import json
-import disnake
+from pathlib import Path
 
-from . import *
+parent = Path(__file__).absolute().parent.parent
 
+credentials_path = parent.joinpath("credentials.json")
+if not credentials_path.exists():
+    print("Please populate credentials.json")
+    exit(-1)
 
-with open("credentials.local.json") as file:
+with credentials_path.open() as file:
     credentials = json.load(file)
 
+parser = argparse.ArgumentParser()
+command_parser = parser.add_subparsers(title="command", required=False, dest="command")
+command_parser.add_parser("setup")
+arguments = parser.parse_args()
 
-class PlayListener(disnake.Client):
-    """Listens to user messages and looks for links."""
+if arguments.command is None:
+    from playlistener.client import main
+    main(credentials)
 
-    async def on_ready(self):
-        """Called when the bot is authenticated."""
+elif arguments.command == "setup":
+    from playlistener.spotify import generate_authentication_url
 
-        print(f"logged in as {self.user} (ID: {self.user.id})")
-
-    async def on_message(self, message):
-        """Invoked when you receive a message."""
-
-        if message.author.id == self.user.id:
-            return
-
-        if message.content.startswith("?link"):
-            await message.channel.send(f"""https://open.spotify.com/playlist/{credentials["spotify"]["playlist"]}""")
-            return
-
-        track_links = tuple(find_spotify_track_links(message.content))
-        if len(track_links) == 0:
-            requests.post("https://api.spotify.com/")
-
-        await message.channel.send(f"found {len(track_links)} Spotify links o_o")
-
-
-intents = disnake.Intents.default()
-intents.members = True
-
-# client = PlayListener(intents=intents)
-# client.run(credentials["discord"]["token"])
-
-token = request_access_token(
-    credentials["spotify"]["id"],
-    credentials["spotify"]["secret"],
-    credentials["spotify"]["code"])
-add_items_to_playlist(token, credentials["spotify"]["playlist"], ["spotify:track:4X9JAGRyJnnHN3KUjq1r9C"])
+    print("url:", generate_authentication_url(credentials["spotify"]["id"]))
+    code = input("code: ")
+    spotify_path = parent.joinpath("spotify.json")
+    spotify_path.write_text(json.dumps({"initial_code": code}))

@@ -1,7 +1,8 @@
 import disnake
-import random
+import re
 
 from .spotify import *
+from .respond import Responder
 
 CONFIRMATION_MESSAGES = (
     "i love that song :smiley_cat:",
@@ -21,13 +22,26 @@ CONFIRMATION_MESSAGES = (
     "i'll add this right away :smile_cat:",
     "seek therapy :crying_cat_face:")
 
+MENTION_MESSAGES = (
+    "hai :smile_cat:",
+    "meow :smile_cat:",
+    "hullo :smiley_cat:",
+    "shut up :pouting_cat:",
+    "alhamdu lillahi rabbil 'alamin :pray:")
+
+THANKS_MESSAGES = (
+    "you're welcome :smile_cat:",
+    "hehe :smiley_cat:")
+
 
 class PlayListener(disnake.Client):
     """Listens to user messages and looks for links."""
 
     playlist_id: str
     spotify_session: SpotifySession
-    last_confirmation_message_index: int = -1
+    confirmation_messages: Responder
+    mention_messages: Responder
+    thanks_messages: Responder
 
     def __init__(self, playlist_id: str, spotify_session: SpotifySession, *args, **kwargs):
         """Initialize the client with its target playlist ID."""
@@ -35,6 +49,9 @@ class PlayListener(disnake.Client):
         super().__init__(*args, **kwargs)
         self.playlist_id = playlist_id
         self.spotify_session = spotify_session
+        self.confirmation_messages = Responder(CONFIRMATION_MESSAGES)
+        self.mention_messages = Responder(MENTION_MESSAGES)
+        self.thanks_messages = Responder(THANKS_MESSAGES)
 
     async def on_ready(self):
         """Called when the bot is authenticated."""
@@ -56,18 +73,22 @@ class PlayListener(disnake.Client):
 
         uris = tuple(find_spotify_track_links(message.content))
         if len(uris) == 0:
+            content = message.content.lower()
+            if self.mentions_me(message):
+                if "thank" in content or "love" in content:
+                    message.channel.send(self.thanks_messages.next())
+                else:
+                    message.channel.send(self.mention_messages.next())
             return
 
         self.spotify_session.add_items_to_playlist(self.playlist_id, uris)
-        await message.channel.send(self._get_confirmation_message())
+        await message.channel.send(self.confirmation_messages.next())
 
-    def _get_confirmation_message(self) -> str:
-        """Get a random confirmation message without repeating."""
+    def mentions_me(self, message) -> bool:
+        """Check if we're mentioned"""
 
-        index = random.randint(0, len(CONFIRMATION_MESSAGES) - 1)
-        if index == self.last_confirmation_message_index:
-            index = (index + 1) % len(CONFIRMATION_MESSAGES)
-        return CONFIRMATION_MESSAGES[index]
+        named = re.search("binz|binzy|binzybot|blintz", message.content.lower())
+        return named or any(user.id == self.user.id for user in message.mentions)
 
 
 def main(credentials: dict):

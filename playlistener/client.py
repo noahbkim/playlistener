@@ -76,9 +76,9 @@ class PlayListener(disnake.Client):
             content = message.content.lower()
             if self.mentions_me(message):
                 if "thank" in content or "love" in content:
-                    message.channel.send(self.thanks_messages.next())
+                    await message.channel.send(self.thanks_messages.next())
                 else:
-                    message.channel.send(self.mention_messages.next())
+                    await message.channel.send(self.mention_messages.next())
             return
 
         self.spotify_session.add_items_to_playlist(self.playlist_id, uris)

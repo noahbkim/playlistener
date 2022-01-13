@@ -4,6 +4,26 @@ import re
 from .spotify import *
 from .respond import Responder
 
+NAMES = re.compile("|".join((
+    "playlistener",
+    "blintz",
+    "blintzy"
+    "bint",
+    "blonz",
+    "blonzo",
+    "bibby",
+    "blippy",
+    "blizno",
+    "binz",
+    "binzy",
+    "bintzy",
+    "blinzy",
+    "bunz",
+    "bunzy",
+    "binzybot",
+    "bazinga",
+    "bazooper")))
+
 CONFIRMATION_MESSAGES = (
     "i love that song :smiley_cat:",
     "great pick :heart_eyes_cat:",
@@ -20,18 +40,34 @@ CONFIRMATION_MESSAGES = (
     "on it :smile_cat:",
     "added :smile_cat:",
     "i'll add this right away :smile_cat:",
-    "seek therapy :crying_cat_face:")
+    "seek therapy :crying_cat_face:",
+    "woah this is great :smiley_cat:",
+    "do i actually have to add this :joy_cat:",
+    "fire track :fire:",
+    "mashallah :pray:",
+    "kurwa :pouting_cat:",
+    "cyka blyat :pouting_cat:",
+    "cool song :smiley_cat:",
+    "this is my new favorite song :smile_cat:")
 
 MENTION_MESSAGES = (
     "hai :smile_cat:",
     "meow :smile_cat:",
     "hullo :smiley_cat:",
     "shut up :pouting_cat:",
+    "i dunno :smiley_cat:",
+    "sry :crying_cat_face:",
+    "my bad :crying_cat_face:",
     "alhamdu lillahi rabbil 'alamin :pray:")
 
 THANKS_MESSAGES = (
     "you're welcome :smile_cat:",
-    "hehe :smiley_cat:")
+    "hehe :smiley_cat:",
+    "no u :smiley_cat:",
+    "of course :smile_cat:",
+    "it's nothing :smile_cat:",
+    "i love you :heart_eyes_cat:",
+    "you're the best :heart_eyes_cat:",)
 
 
 class PlayListener(disnake.Client):
@@ -87,7 +123,7 @@ class PlayListener(disnake.Client):
     def mentions_me(self, message) -> bool:
         """Check if we're mentioned"""
 
-        named = re.search("binz|binzy|binzybot|blintz", message.content.lower())
+        named = NAMES.search(message.content.lower())
         return named or any(user.id == self.user.id for user in message.mentions)
 
 

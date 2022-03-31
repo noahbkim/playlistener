@@ -109,6 +109,10 @@ class PlayListener(disnake.Client):
 
         uris = tuple(find_spotify_track_links(message.content))
         if len(uris) == 0:
+            if message.author.name.lower().startswith("Arvid"):
+                await message.channel.send("fuck you")
+                return
+
             content = message.content.lower()
             if self.mentions_me(message):
                 if "thank" in content or "love" in content:

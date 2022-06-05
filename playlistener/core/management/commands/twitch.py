@@ -180,7 +180,7 @@ class TwitchBot(commands.Bot):
     async def song(self, context: commands.Context):
         """Queue a song."""
 
-        messages = await self._queue(context)
+        messages = await self._song(context)
         for message in messages:
             await context.reply(message)
 

@@ -5,7 +5,7 @@ from django.conf import settings
 
 import requests
 import base64
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Optional
 
 
 class Invitation(models.Model):
@@ -152,6 +152,19 @@ class SpotifyAuthorization(models.Model):
         if response.status_code != 200:
             print(f"failed to get track: {response.content}")
             raise SpotifyException("failed to get track")
+
+        return response.json()
+
+    def get_current_track(self) -> Optional[dict]:
+        """Get the currently playing track."""
+
+        response = self.retry(lambda: requests.get(
+            f"https://api.spotify.com/v1/me/player/currently-playing",
+            headers=self.make_headers()))
+
+        if response.status_code != 200:
+            print(f"failed to get playlist: {response.content}")
+            raise SpotifyException("failed to get current track")
 
         return response.json()
 

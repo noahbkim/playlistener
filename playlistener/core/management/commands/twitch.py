@@ -58,6 +58,14 @@ def describe_queue(queued: bool, added: bool) -> str:
     return "added"
 
 
+def describe_track(track: dict) -> str:
+    """Join artists, append title."""
+
+    artists = ", ".join(artist["name"] for artist in track["artists"])
+    title = track["name"]
+    return f"{artists} - {title}"
+
+
 class TwitchBot(commands.Bot):
     """Listens for commands and handles Spotify integration."""
 
@@ -135,9 +143,7 @@ class TwitchBot(commands.Bot):
 
         if added_to_playlist or added_to_queue:
             info = integration.user.spotify.get_track(track_id)
-            artists = ", ".join(artist["name"] for artist in info["artists"])
-            title = info["name"]
-            messages.append(f"{describe_queue(added_to_queue, added_to_playlist)} {artists} - {title}")
+            messages.append(f"{describe_queue(added_to_queue, added_to_playlist)} {describe_track(info)}")
 
         user.time_queued = timezone.now()
         user.save()
@@ -146,6 +152,32 @@ class TwitchBot(commands.Bot):
 
     @commands.command()
     async def queue(self, context: commands.Context):
+        """Queue a song."""
+
+        messages = await self._queue(context)
+        for message in messages:
+            await context.reply(message)
+
+    @sync_to_async
+    def _song(self, context: commands.Context):
+        """Get the current song."""
+
+        integration = TwitchIntegration.objects.filter(
+            channel=context.channel.name).select_related("user", "user__spotify").get()
+
+        try:
+            track = integration.user.spotify.get_current_track()
+        except SpotifyException as exception:
+            return [str(exception)]
+
+        if track is None or "name" not in track:
+            return [f"{context.channel.name} isn't listening to anything on Spotify!"]
+
+        url = track["external_urls"]["spotify"]
+        return [f"{describe_track(track)} ({url})"]
+
+    @commands.command()
+    async def song(self, context: commands.Context):
         """Queue a song."""
 
         messages = await self._queue(context)

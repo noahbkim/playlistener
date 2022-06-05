@@ -2,6 +2,8 @@
 @import url('https://fonts.googleapis.com/css?family=Lato:400,500');
 @import url('https://fonts.googleapis.com/css?family=Fira+Mono');
 
+@import './mixins';
+
 
 @function inverse($color) {
   $luminance: (0.299 * red($color) + 0.587 * green($color) + 0.114 * blue($color)) / 255;
@@ -50,22 +52,6 @@ h6 {
   line-height: 1.1;
 }
 
-$color-spotify: #1DB954;
-$color-twitch: #9146FF;
-$color-discord: #5865F2;
-
-.background-color-spotify {
-  background-color: $color-spotify;
-}
-
-.background-color-twitch {
-  background-color: $color-twitch;
-}
-
-.background-color-discord {
-  background-color: $color-discord;
-}
-
 $font-family-mono: 'Fira Mono', 'mono';
 
 // Palette
@@ -87,6 +73,51 @@ $color-accent-inverse: inverse($color-accent);
 
 .color-accent { color: $color-accent !important; }
 .background-color-accent { background-color: $color-accent; }
+
+$color-spotify: #1DB954;
+$color-twitch: #9146FF;
+$color-discord: #5865F2;
+
+@mixin theme($color, $color-inverse) {
+  .color-primary {
+    color: $color;
+  }
+
+  .background-color-primary, &.window > .accent {
+    background-color: $color;
+  }
+
+  button,
+  .button {
+    &.primary {
+      @include button-solid($color-inverse, $color);
+    }
+
+    &.secondary {
+      @include button-outlined($color);
+    }
+  }
+
+  .checkbox > input:checked + .check {
+    background-color: $color;
+  }
+
+  a {
+    color: $color;
+  }
+}
+
+.theme-spotify {
+  @include theme($color-spotify, inverse($color-spotify));
+}
+
+.theme-twitch {
+  @include theme($color-twitch, inverse($color-twitch));
+}
+
+.theme-discord {
+  @include theme($color-discord, inverse($color-discord));
+}
 
 
 // Fit in URLs

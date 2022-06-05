@@ -1,10 +1,26 @@
 {% extends "shared/default.html" %}
+{% load static %}
+
+{% block head %}
+<script type="text/javascript">
+  window.addEventListener("load", () => {
+    document.getElementById("copy-access-token").addEventListener("click", () => {
+      navigator.clipboard.writeText("{{ request.user.spotify.access_token }}");
+    });
+    document.getElementById("copy-refresh-token").addEventListener("click", () => {
+      navigator.clipboard.writeText("{{ request.user.spotify.refresh_token }}");
+    });
+  });
+</script>
+<script type="text/javascript" src="{% static "js/spotify.js" %}"></script>
+{% endblock %}
 
 {% block content %}
-<h1>Welcome, {{ request.user.first_name }}</h1>
-
-<div class="window layer1">
-  <div class="accent background-color-spotify"></div>
+<h1>
+  Welcome, {{ request.user.first_name }}
+</h1>
+<div class="window layer1 theme-spotify">
+  <div class="accent"></div>
   <div class="actual">
     <h2 class="header">Spotify Authorization</h2>
     <div class="content">
@@ -17,26 +33,52 @@
         {% endif %}
       </div>
       <div class="form-group buttons">
-        <button class="secondary">Copy access token</button>
-        <button class="secondary">Copy refresh token</button>
-        <a class="button primary" href="{% url "core:oauth_spotify" %}?next={% url "core:oauth_spotify_update" %}" disabled>Reauthorize Spotify</a>
+        <button id="copy-access-token" class="secondary">Copy access token</button>
+        <button id="copy-refresh-token" class="secondary">Copy refresh token</button>
+        <a
+          class="button {% if spotify_exception %}primary{% else %}disabled{% endif %}"
+          {% if spotify_exception %}href="{% url "core:oauth_spotify" %}?next={% url "core:oauth_spotify_update" %}"{% endif %}
+        >
+          Reauthorize Spotify
+        </a>
       </div>
     </div>
   </div>
 </div>
-<div class="window layer1">
-  <div class="accent background-color-twitch"></div>
+<div class="window layer1 theme-twitch">
+  <div class="accent"></div>
   <div class="actual">
     <h2 class="header">Twitch Integrations</h2>
+    <div class="content">
+      {% for integration in request.user.twitch_integrations.all %}
+      <div class="window layer2">
+        <div class="accent background-color-twitch"></div>
+        <div class="actual">
+          <h2 class="header">{{ integration.channel }}</h2>
+          <div class="content">
+            <form method="post" action="{% url "core:twitch_update" integration.pk %}">
+              {% csrf_token %}
+              {% with True as removable %}
+              {% include "core/forms/twitch.html" %}
+              {% endwith %}
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+      <div class="form-group buttons">
+        <a class="button primary" href="{% url "core:twitch" %}">Add Twitch Integration</a>
+      </div>
+    </div>
   </div>
 </div>
-<div class="window layer1">
-  <div class="accent background-color-discord"></div>
-  <div class="actual">
-    <h2 class="header">Discord Integrations</h2>
-  </div>
-</div>
+{#<div class="window layer1 theme-discord">#}
+{#  <div class="accent background-color-discord"></div>#}
+{#  <div class="actual">#}
+{#    <h2 class="header">Discord Integrations</h2>#}
+{#  </div>#}
+{#</div>#}
 <div class="windowless form-group buttons">
-  <a class="button" href="{% url "core:logout" %}">Logout</a>
+  <a class="button float-right" href="{% url "core:logout" %}">Logout</a>
 </div>
 {% endblock %}

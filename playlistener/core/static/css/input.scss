@@ -7,7 +7,7 @@ $font-size-button: 16px;
 $font-size-input: 16px;
 $font-size-textarea: 12px;
 
-$check-box-size: 29px;
+$check-box-size: 41px;
 $check-box-radius: $border-radius;
 $check-box-check-radius: $check-box-radius / 2;
 $check-box-check-size: 65%;
@@ -80,29 +80,6 @@ textarea {
   }
 }
 
-@mixin button-solid($color, $background-color) {
-  background-color: $background-color;
-  border-color: $background-color;
-  color: $color;
-
-  &:not(:disabled):active {
-    background-color: darken($background-color);
-    border-color: darken($background-color);
-    color: darken($color);
-  }
-}
-
-@mixin button-outlined($color) {
-  background-color: transparent;
-  border-color: $color;
-  color: $color;
-
-  &:not(:disabled):active {
-    border-color: darken($color);
-    color: darken($color);
-  }
-}
-
 button,
 .button {
   cursor: pointer;
@@ -122,11 +99,11 @@ button,
     @include button-outlined($color-accent);
   }
 
-  &:disabled {
+  &:disabled, &.disabled {
     background-color: #CCC;
     border-color: #CCC;
     cursor: default;
-    color: white;
+    color: #777;
   }
 
   &.small {
@@ -163,7 +140,7 @@ select {
   }
 
   &:not(.noninteractive):hover {
-    background-color: rgba(white, $mix-percentage);
+    background-color: mix(white, $color-background-input, $mix-percentage);
   }
 
   & > .check {

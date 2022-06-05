@@ -26,7 +26,7 @@ body {
   @include box-sizing(border-box);
   margin-bottom: 2 * $content-margin;
 
-  .accent {
+  & > .accent {
     height: $content-margin / 2;
     @include border-radius-top($border-radius-large);
   }
@@ -59,4 +59,10 @@ body {
 
 .float-right {
   float: right;
+}
+
+.errors {
+  color: $color-accent;
+  margin-top: 0;
+  padding-left: 1em;
 }

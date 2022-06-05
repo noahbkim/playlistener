@@ -82,3 +82,25 @@
   }
 }
 
+@mixin button-solid($color, $background-color) {
+  background-color: $background-color;
+  border-color: $background-color;
+  color: $color;
+
+  &:not(:disabled):active {
+    background-color: darken($background-color, 10%);
+    border-color: darken($background-color, 10%);
+    color: darken($color, 10%);
+  }
+}
+
+@mixin button-outlined($color) {
+  background-color: transparent;
+  border-color: $color;
+  color: $color;
+
+  &:not(:disabled):active {
+    border-color: darken($color, 10%);
+    color: darken($color, 10%);
+  }
+}

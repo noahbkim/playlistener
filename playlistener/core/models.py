@@ -26,6 +26,10 @@ class NoQueueSpotifyException(SpotifyException):
     """Thrown when a track can't be added to queue."""
 
 
+class InvalidPlaylistSpotifyException(SpotifyException):
+    """Thrown specifically on 404 from accessing playlist."""
+
+
 class SpotifyAuthorization(models.Model):
     """Contains API keys for Spotify use."""
 
@@ -147,8 +151,25 @@ class SpotifyAuthorization(models.Model):
             headers=self.make_headers()))
 
         if response.status_code != 200:
-            print(f"failed to add items to playlist: {response.content}")
-            raise SpotifyException("failed to add items to playlist")
+            print(f"failed to get track: {response.content}")
+            raise SpotifyException("failed to get track")
+
+        return response.json()
+
+    def get_playlist(self, playlist_id: str) -> dict:
+        """Get track info."""
+
+        response = self.retry(lambda: requests.get(
+            f"https://api.spotify.com/v1/playlists/{playlist_id}",
+            headers=self.make_headers()))
+
+        if response.status_code == 404:
+            print(f"playlist does not exist: {response.content}")
+            raise InvalidPlaylistSpotifyException("playlist does not exist")
+
+        if response.status_code != 200:
+            print(f"failed to get playlist: {response.content}")
+            raise SpotifyException("failed to get playlist")
 
         return response.json()
 
@@ -200,7 +221,7 @@ class TwitchIntegration(Integration):
 
     user = models.ForeignKey(to=User, on_delete=models.CASCADE, related_name="twitch_integrations")
 
-    channel = models.CharField(max_length=100)
+    channel = models.CharField(max_length=100, unique=True)
     delay = models.FloatField(default=60)
 
     add_to_queue = models.BooleanField(default=False)

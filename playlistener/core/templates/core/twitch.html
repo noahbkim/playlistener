@@ -1,0 +1,21 @@
+{% extends "shared/default.html" %}
+{% load static %}
+
+{% block head %}
+<script type="text/javascript" src="{% static "js/spotify.js" %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="window layer1 theme-twitch">
+  <div class="accent"></div>
+  <div class="actual">
+    <h1 class="header">Add Twitch Integration</h1>
+    <div class="content">
+      <form method="post">
+        {% csrf_token %}
+        {% include "core/forms/twitch.html" %}
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

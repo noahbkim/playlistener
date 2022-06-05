@@ -1,0 +1,54 @@
+{% if form.instance.pk == integration.pk and form.errors %}
+<ul class="errors">
+  {% for field in form %}
+  {% if field.errors %}
+  <li>
+    Errors in {{ field.name }}!
+    {{ field.errors }}
+  </li>
+  {% endif %}
+  {% endfor %}
+</ul>
+{% endif %}
+<div class="form-group split">
+  <div style="flex: 1;">
+    <label for="channel">Channel</label>
+    <input type="text" id="channel" name="channel" value="{{ integration.channel }}">
+  </div>
+  <div>
+    <label for="delay">Delay</label>
+    <input type="number" id="delay" name="delay" value="{{ integration.delay }}">
+  </div>
+</div>
+<div class="form-group split">
+  <div>
+    <label for="add-to-queue">Add to queue</label>
+    <div class="checkbox">
+      <input type="checkbox" name="add_to_queue" id="add-to-queue" {% if integration.add_to_queue %}checked{% endif %} />
+      <div class="check"></div>
+    </div>
+  </div>
+  <div>
+    <label for="add-to-playlist">Add to playlist</label>
+    <div class="checkbox">
+      <input type="checkbox" name="add_to_playlist" id="add-to-playlist" {% if integration.add_to_playlist %}checked{% endif %} />
+      <div class="check"></div>
+    </div>
+  </div>
+  <div style="flex: 1;">
+    <label for="playlist-id">
+      <span>Playlist</span>
+      <a class="playlist-link float-right" target="_blank" href="https://open.spotify.com/playlist/{{ integration.playlist_id }}">https://open.spotify.com/playlist/</a>
+    </label>
+    <input type="text" id="playlist-id" class="playlist-id" name="playlist_id" value="{{ integration.playlist_id }}">
+  </div>
+</div>
+<div class="form-group buttons">
+  {% if removable %}
+  <a class="button accent" href="{% url "core:twitch_delete" integration.pk %}">Remove</a>
+  <button class="primary" type="submit">Update</button>
+  {% else %}
+  <a class="button accent" href="{% url "core:index" %}">Back</a>
+  <button class="primary" type="submit">Create</button>
+  {% endif %}
+</div>

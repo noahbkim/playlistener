@@ -50,7 +50,8 @@ select,
 textarea,
 .input,
 .input-mock,
-.labeled {
+.labeled,
+.checkbox {
   @at-root label + & {
     margin-top: $content-margin;
   }

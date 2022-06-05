@@ -1,7 +1,7 @@
 from django.shortcuts import redirect, reverse, Http404
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, FormView, UpdateView, DeleteView
 from django.conf import settings
 from django.db import transaction
 from django.contrib.auth import login, views
@@ -11,7 +11,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 import random
 import string
 
-from .models import User, Invitation, SpotifyAuthorization, SpotifyException
+from .models import User, Invitation, SpotifyAuthorization, SpotifyException, TwitchIntegration
+from .forms import TwitchIntegrationForm
 
 __all__ = (
     "LoginView",
@@ -108,6 +109,64 @@ class FinishRegistrationView(TemplateView):
 
         login(request, user)
         return redirect("core:index")
+
+
+class TwitchIntegrationView(LoginRequiredMixin, FormView):
+    """Create a new twitch integration."""
+
+    template_name = "core/twitch.html"
+    form_class = TwitchIntegrationForm
+
+    def get_form_kwargs(self):
+        """Add user to kwargs."""
+
+        kwargs = super().get_form_kwargs()
+        kwargs.update(user=self.request.user)
+        return kwargs
+
+    def form_valid(self, form: TwitchIntegrationForm):
+        """Save the instance."""
+
+        form.instance.user = self.request.user
+        form.save(commit=True)
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        """Go back to index."""
+
+        return reverse("core:index")
+
+
+class TwitchIntegrationUpdateView(LoginRequiredMixin, UpdateView):
+    """Allow modification and deletion."""
+
+    template_name = "core/index.html"
+    form_class = TwitchIntegrationForm
+    queryset = TwitchIntegration.objects
+
+    def get_form_kwargs(self):
+        """Add user to kwargs."""
+
+        kwargs = super().get_form_kwargs()
+        kwargs.update(user=self.request.user)
+        return kwargs
+
+    def get_success_url(self):
+        """Go back to index."""
+
+        return reverse("core:index")
+
+
+class TwitchIntegrationDeleteView(LoginRequiredMixin, DeleteView):
+    """Allow modification and deletion."""
+
+    queryset = TwitchIntegration.objects
+    template_name = "core/twitch_confirm_delete.html"
+
+    def get_success_url(self):
+        """Go back to index."""
+
+        return reverse("core:index")
 
 
 def view_spotify_oauth(request: HttpRequest) -> HttpResponse:

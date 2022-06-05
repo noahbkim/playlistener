@@ -1,0 +1,22 @@
+{% extends "shared/default.html" %}
+
+{% block bodyclass %}modal{% endblock %}
+
+{% block content %}
+<div class="window layer1 theme-twitch">
+  <div class="accent"></div>
+  <div class="actual">
+    <h1 class="header">Login</h1>
+    <div class="content">
+      <p>Confirm deletion of Twitch integration for channel <code>{{ object.channel }}</code>?</p>
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-group buttons">
+          <a class="button secondary" href="{% url "core:index" %}">Cancel</a>
+          <button type="submit" class="button accent">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

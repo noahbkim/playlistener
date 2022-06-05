@@ -100,15 +100,31 @@ class FinishRegistrationView(TemplateView):
     def post(cls, request: HttpRequest) -> HttpResponse:
         """Create the User and Spotify authorization."""
 
+        if "username" not in request.session or "spotify_code" not in request.session:
+            raise Http404
+
+        username = request.session["username"]
+
+        invitation = Invitation.objects.filter(username=username).first()
+        if invitation is None:
+            return redirect(reverse("core:register") + "?error=uninvited")
+
         with transaction.atomic():
             user = User.objects.create_user(
-                username=request.session["username"],
+                username=username,
                 email=request.POST["email"],
                 first_name=request.POST["first_name"],
                 last_name=request.POST["last_name"],
                 password=request.POST["password"])
+
+            if invitation.administrator:
+                user.is_staff = user.is_superuser = True
+                user.save()
+
             authorization = SpotifyAuthorization(user=user)
             authorization.request(request.session["spotify_code"])
+
+        invitation.delete()
 
         login(request, user)
         return redirect("core:index")

@@ -1,34 +1,49 @@
 {% extends "shared/default.html" %}
 
+{% block bodyclass %}modal{% endblock %}
+
 {% block content %}
-<form method="post" class="layer1">
-  {% csrf_token %}
-  <div class="form-group">
-    <input id="username" name="username" value="{{ request.session.username }}" type="text" disabled />
-    <label for="username">Username</label>
+<div class="window layer1">
+  <div class="accent"></div>
+  <div class="actual">
+    <h1 class="header">Register</h1>
+    <div class="content">
+      {% if request.GET.error == "uninvited" %}
+      <ul class="errors">
+        <li>You haven't been invited to register!</li>
+      </ul>
+      {% endif %}
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input id="username" name="username" value="{{ request.session.username }}" type="text" disabled />
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email">
+        </div>
+        <div class="form-group">
+          <label for="first-name">First name</label>
+          <input id="first-name" name="first_name" type="text">
+        </div>
+        <div class="form-group">
+          <label for="last-name">Last name</label>
+          <input id="last-name" name="last_name" type="text">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password">
+        </div>
+          <div class="form-group">
+          <label for="password2">Password confirmation</label>
+          <input id="password2" name="password2" type="password">
+        </div>
+        <div class="form-group buttons">
+          <button type="submit">Next</button>
+        </div>
+      </form>
+    </div>
   </div>
-  <div class="form-group">
-    <input id="email" name="email" type="email">
-    <label for="email">Email</label>
-  </div>
-  <div class="form-group">
-    <input id="first-name" name="first_name" type="text">
-    <label for="first-name">First name</label>
-  </div>
-  <div class="form-group">
-    <input id="last-name" name="last_name" type="text">
-    <label for="last-name">Last name</label>
-  </div>
-  <div class="form-group">
-    <input id="password" name="password" type="password">
-    <label for="password">Password</label>
-  </div>
-    <div class="form-group">
-    <input id="password2" name="password2" type="password">
-    <label for="password2">Password</label>
-  </div>
-  <div class="form-group buttons">
-    <button type="submit">Next</button>
-  </div>
-</form>
+</div>
 {% endblock %}

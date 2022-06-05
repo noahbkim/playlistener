@@ -35,7 +35,7 @@ def generate_spotify_authorization_url(state: str) -> str:
         f"https://accounts.spotify.com/authorize"
         f"?response_type=code"
         f"&client_id={settings.SPOTIFY_CLIENT_ID}"
-        f"&scope=playlist-modify-public user-modify-playback-state"
+        f"&scope=playlist-modify-public user-read-playback-state user-modify-playback-state"
         f"&redirect_uri={settings.SPOTIFY_REDIRECT_URI}"
         f"&state={state}")
 

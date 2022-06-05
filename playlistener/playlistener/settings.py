@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-d4i9p)3)p68*-8=r16la*91r_uojq4ss!bp5gv1f+h4t+%ug%4
 # SECURITY WARNING: don"t run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["playlistener.noahb.kim", "localhost"]
 
 
 # Application definition

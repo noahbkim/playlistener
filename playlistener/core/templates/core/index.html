@@ -36,8 +36,8 @@
         <button id="copy-access-token" class="secondary">Copy access token</button>
         <button id="copy-refresh-token" class="secondary">Copy refresh token</button>
         <a
-          class="button {% if spotify_exception %}primary{% else %}disabled{% endif %}"
-          {% if spotify_exception %}href="{% url "core:oauth_spotify" %}?next={% url "core:oauth_spotify_update" %}"{% endif %}
+          class="button primary"
+          href="{% url "core:oauth_spotify" %}?next={% url "core:oauth_spotify_update" %}"
         >
           Reauthorize Spotify
         </a>

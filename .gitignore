@@ -1,6 +1,7 @@
 .idea/
 credentials.json
 spotify.json
+local.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

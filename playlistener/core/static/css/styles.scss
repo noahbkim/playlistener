@@ -1,0 +1,62 @@
+@import 'theme';
+@import 'mixins';
+@import 'input';
+@import 'forms';
+
+body {
+  max-width: 800px;
+  margin: 4em auto;
+
+  color: $layer0-color;
+  background-color: $layer0-color-background;
+
+  &.modal {
+    max-width: 600px;
+    margin: 8em auto;
+  }
+
+  &:last-child:after {
+    display: block;
+    height: 1rem;
+  }
+}
+
+.window {
+  @include border-radius($border-radius-large);
+  @include box-sizing(border-box);
+  margin-bottom: 2 * $content-margin;
+
+  .accent {
+    height: $content-margin / 2;
+    @include border-radius-top($border-radius-large);
+  }
+
+  .actual {
+    padding: $content-margin / 2 $content-margin $content-margin $content-margin;
+
+    & > .header {
+      margin: $content-margin;
+
+      a {
+        color: inherit;
+      }
+    }
+
+    & > .content {
+      margin: $content-margin;
+      padding-top: $content-margin;
+
+      & > *:first-child {
+        margin-top: 0;
+      }
+    }
+  }
+}
+
+.windowless {
+  margin-bottom: 2 * $content-margin;
+}
+
+.float-right {
+  float: right;
+}

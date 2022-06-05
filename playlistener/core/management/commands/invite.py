@@ -1,0 +1,12 @@
+from django.core.management.base import BaseCommand, CommandError
+from core.models import Invitation
+
+
+class Command(BaseCommand):
+    """Invite a user to setup integrations."""
+
+    def add_arguments(self, parser):
+        parser.add_argument("username")
+
+    def handle(self, username, *args, **options):
+        Invitation.objects.create(username=username)

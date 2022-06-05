@@ -55,9 +55,12 @@ class SpotifySession:
             print(response.content)
             raise SpotifyException("failed to authorize with Spotify!")
 
-        old_refresh_token = self.cache["refresh_token"]
+        old_refresh_token = self.cache.get("refresh_token")
         self.cache = json.loads(response.content.decode())
-        self.cache["refresh_token"] = old_refresh_token
+
+        if old_refresh_token is not None:
+            self.cache["refresh_token"] = old_refresh_token
+
         self.cache["time"] = now
         with self.cache_path.open("w") as file:
             json.dump(self.cache, file, indent=2)

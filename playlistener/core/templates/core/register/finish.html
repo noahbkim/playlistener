@@ -1,0 +1,34 @@
+{% extends "shared/default.html" %}
+
+{% block content %}
+<form method="post" class="layer1">
+  {% csrf_token %}
+  <div class="form-group">
+    <input id="username" name="username" value="{{ request.session.username }}" type="text" disabled />
+    <label for="username">Username</label>
+  </div>
+  <div class="form-group">
+    <input id="email" name="email" type="email">
+    <label for="email">Email</label>
+  </div>
+  <div class="form-group">
+    <input id="first-name" name="first_name" type="text">
+    <label for="first-name">First name</label>
+  </div>
+  <div class="form-group">
+    <input id="last-name" name="last_name" type="text">
+    <label for="last-name">Last name</label>
+  </div>
+  <div class="form-group">
+    <input id="password" name="password" type="password">
+    <label for="password">Password</label>
+  </div>
+    <div class="form-group">
+    <input id="password2" name="password2" type="password">
+    <label for="password2">Password</label>
+  </div>
+  <div class="form-group buttons">
+    <button type="submit">Next</button>
+  </div>
+</form>
+{% endblock %}

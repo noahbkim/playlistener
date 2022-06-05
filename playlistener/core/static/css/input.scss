@@ -1,0 +1,188 @@
+@import './theme.scss';
+@import './mixins.scss';
+
+$font-family: $font-family;
+$font-weight: $font-weight;
+$font-size-button: 16px;
+$font-size-input: 16px;
+$font-size-textarea: 12px;
+
+$check-box-size: 29px;
+$check-box-radius: $border-radius;
+$check-box-check-radius: $check-box-radius / 2;
+$check-box-check-size: 65%;
+
+$padding-input: 10px 12px;
+$padding-button: 10px 16px;
+$padding-button-small: 5px 8px;
+$padding-button-tiny: 2px 4px;
+
+$color-background-input: $layer0-color-background;
+$color-input: $layer0-color;
+
+
+@mixin input-geometry($padding: $padding-input) {
+  border-width: 1px;
+  border-style: solid;
+  border-radius: $border-radius;
+  padding: $padding;
+  outline: none;
+  margin: 0;
+
+  @include box-sizing(border-box);
+}
+
+@mixin padding-input {
+  padding: $padding-input;
+}
+
+@mixin padding-button {
+  padding: $padding-button;
+}
+
+
+input,
+button,
+select,
+textarea,
+.input,
+.button {
+  font-family: $font-family;
+  font-weight: $font-weight;
+}
+
+input,
+select,
+textarea,
+.input {
+  width: 100%;
+  font-size: $font-size-input;
+
+  color: $color-input;
+  background-color: $color-background-input;
+  border-color: $color-background-input;
+
+  @include input-geometry;
+  @include box-sizing(border-box);
+
+  &.invalid {
+    border-color: $color-accent;
+  }
+}
+
+textarea {
+  max-width: 100%;
+  min-width: 100%;
+
+  &.mono {
+    font-family: $font-family-mono;
+    font-size: $font-size-textarea;
+  }
+}
+
+@mixin button-solid($color, $background-color) {
+  background-color: $background-color;
+  border-color: $background-color;
+  color: $color;
+
+  &:not(:disabled):active {
+    background-color: darken($background-color);
+    border-color: darken($background-color);
+    color: darken($color);
+  }
+}
+
+@mixin button-outlined($color) {
+  background-color: transparent;
+  border-color: $color;
+  color: $color;
+
+  &:not(:disabled):active {
+    border-color: darken($color);
+    color: darken($color);
+  }
+}
+
+button,
+.button {
+  cursor: pointer;
+  font-size: $font-size-button;
+  display: inline-block;
+  @include input-geometry($padding-button);
+
+  &.primary {
+    @include button-solid($color-primary-inverse, $color-primary);
+  }
+
+  &.secondary {
+    @include button-outlined($color-primary);
+  }
+
+  &.accent {
+    @include button-outlined($color-accent);
+  }
+
+  &:disabled {
+    background-color: #CCC;
+    border-color: #CCC;
+    cursor: default;
+    color: white;
+  }
+
+  &.small {
+    padding: $padding-button-small;
+  }
+
+  &.tiny {
+    padding: $padding-button-tiny;
+  }
+}
+
+select {
+  -webkit-appearance: none;
+}
+
+.checkbox {
+  user-select: none;
+  position: relative;
+  background-color: $color-background-input;
+
+  @include box-sizing(border-box);
+
+  height: $check-box-size;
+  width: $check-box-size;
+  border-radius: $check-box-radius;
+
+  & > input {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    z-index: 1;
+    cursor: pointer;
+  }
+
+  &:not(.noninteractive):hover {
+    background-color: rgba(white, $mix-percentage);
+  }
+
+  & > .check {
+    display: block;
+    position: absolute;
+    background-color: transparent;
+
+    top: (100% - $check-box-check-size) / 2;
+    left: (100% - $check-box-check-size) / 2;
+    width: $check-box-check-size;
+    height: $check-box-check-size;
+    @include border-radius($check-box-check-radius);
+  }
+
+  & > input:checked + .check {
+    background-color: $color-primary;
+  }
+
+  & + label {
+    margin-left: $content-margin;
+  }
+}

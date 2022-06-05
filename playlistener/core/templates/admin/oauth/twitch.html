@@ -1,0 +1,39 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url "admin:oauth_twitch" %}">Twitch OAuth</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<h1 class="admin-header">Twitch OAuth</h1>
+<table class="wide">
+  <thead>
+    <tr>
+      <th class="sortable column-email" scope="col">Email</th>
+      <th class="sortable column-accepted" scope="col">Accepted</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Code</td>
+      <td><code>{{ request.GET.code }}</code></td>
+    </tr>
+    <tr>
+      <td>Scope</td>
+      <td><code>{{ request.GET.scope }}</code></td>
+    </tr>
+    <tr>
+      <td>Access token</td>
+      <td><code>{{ data.access_token }}</code></td>
+    </tr>
+      <tr>
+      <td>Refresh token</td>
+      <td><code>{{ data.refresh_token }}</code></td>
+    </tr>
+  </tbody>
+</table>
+{% endblock %}

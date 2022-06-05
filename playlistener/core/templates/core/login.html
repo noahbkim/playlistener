@@ -1,0 +1,28 @@
+{% extends "shared/default.html" %}
+
+{% block bodyclass %}modal{% endblock %}
+
+{% block content %}
+<div class="window layer1">
+  <div class="accent"></div>
+  <div class="actual">
+    <h1 class="header">Login</h1>
+    <div class="content">
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password">
+        </div>
+        <div class="form-group buttons">
+          <button type="submit" class="button primary">Login</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

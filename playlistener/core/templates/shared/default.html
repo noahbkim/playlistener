@@ -1,0 +1,15 @@
+{% load i18n static sass_tags %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Playlistener {% block title %}{% endblock %}</title>
+    <link href="{% sass_src "css/styles.scss" %}" rel="stylesheet" type="text/css" />
+    <script src="{% static "js/time.js" %}"></script>
+    {% block head %}{% endblock %}
+  </head>
+  <body class="{% block bodyclass %}{% endblock %}">
+    {% block content %}{% endblock %}
+  </body>
+</html>

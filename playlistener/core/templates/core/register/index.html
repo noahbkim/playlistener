@@ -1,0 +1,10 @@
+{% extends "shared/default.html" %}
+
+{% block content %}
+<form method="post">
+  {% csrf_token %}
+  <input id="username" name="username" type="text" />
+  <label for="username">Username</label>
+  <button type="submit">Next</button>
+</form>
+{% endblock %}

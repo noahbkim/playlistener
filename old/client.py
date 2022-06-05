@@ -109,6 +109,7 @@ class PlayListener(disnake.Client):
 
         uris = tuple(find_spotify_track_links(message.content))
         if len(uris) == 0:
+            print(message.author.name, message.author.display_name)
             if message.author.name.lower().startswith("Arvid"):
                 await message.channel.send("fuck you")
                 return

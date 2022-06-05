@@ -6,6 +6,11 @@ name = "pypi"
 [packages]
 disnake = "*"
 requests = "*"
+twitchio = "*"
+django = "*"
+asgiref = "*"
+django-sass-processor = "*"
+libsass = "*"
 
 [dev-packages]
 

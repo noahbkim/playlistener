@@ -1,0 +1,21 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block nav-sidebar %}
+<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="{% translate 'Toggle navigation' %}"></button>
+<nav class="sticky" id="nav-sidebar">
+  <input type="search" id="nav-filter" style="display: none;" />
+  <div class="module">
+    <table>
+      <caption>
+        Extra Actions
+      </caption>
+      <tr class="model-group">
+        <th class="row">
+          <a href="{{ twitch_oauth_url }}">Authenticate Twitch Bot</a>
+        </th>
+      </tr>
+    </table>
+  </div>
+</nav>
+{% endblock %}

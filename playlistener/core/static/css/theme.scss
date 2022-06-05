@@ -1,0 +1,287 @@
+@import url('https://fonts.googleapis.com/css?family=Poppins:500,600,700');
+@import url('https://fonts.googleapis.com/css?family=Lato:400,500');
+@import url('https://fonts.googleapis.com/css?family=Fira+Mono');
+
+
+@function inverse($color) {
+  $luminance: (0.299 * red($color) + 0.587 * green($color) + 0.114 * blue($color)) / 255;
+  @if $luminance > 0.5 {
+    @return black;
+  } @else {
+    @return white;
+  }
+}
+
+
+$font-family: 'Lato', 'Arial', 'sans-serif';
+$font-weight: 400;
+$font-size: 16px;
+
+$horizontal-condense-threshold: 1601px;
+$fullscreen-width-cutoff: 1201px;
+$fullscreen-height-cutoff: 801px;
+
+body {
+  font-family: $font-family;
+  font-weight: $font-weight;
+  font-size: $font-size;
+  line-height: 1.3;
+}
+
+$font-family-header: 'Poppins', 'Helvetica Neue', 'sans-serif';
+$font-weight-header: 600;
+
+h1 {
+  font-size: 36px;
+}
+
+h2 {
+  font-size: 26px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: $font-family-header;
+  font-weight: $font-weight-header;
+  line-height: 1.1;
+}
+
+$color-spotify: #1DB954;
+$color-twitch: #9146FF;
+$color-discord: #5865F2;
+
+.background-color-spotify {
+  background-color: $color-spotify;
+}
+
+.background-color-twitch {
+  background-color: $color-twitch;
+}
+
+.background-color-discord {
+  background-color: $color-discord;
+}
+
+$font-family-mono: 'Fira Mono', 'mono';
+
+// Palette
+
+$color-primary: #74E9D4;
+$color-primary-inverse: inverse($color-primary);
+
+.color-primary { color: $color-primary !important; }
+.background-color-primary { background-color: $color-primary; }
+
+$color-secondary: #298086;
+$color-secondary-inverse: inverse($color-secondary);
+
+.color-secondary { color: $color-secondary !important; }
+.background-color-secondary { background-color: $color-secondary; }
+
+$color-accent: #E43D30;
+$color-accent-inverse: inverse($color-accent);
+
+.color-accent { color: $color-accent !important; }
+.background-color-accent { background-color: $color-accent; }
+
+
+// Fit in URLs
+
+a {
+  text-decoration: none;
+  color: $color-primary;
+}
+
+
+// Extra
+
+$mix-percentage: 5%;
+
+@function darken($color, $percentage: $mix-percentage) {
+  @return mix(black, $color, $percentage);
+}
+
+@function lighten($color, $percentage: $mix-percentage) {
+  @return mix(white, $color, $percentage);
+}
+
+
+// Layer 0
+
+$layer0-color-background: #151517;
+$layer0-color-background-hover: lighten($layer0-color-background);
+$layer0-color-background-selected: lighten($layer0-color-background, 10%);
+$layer0-color-background-disabled: darken($layer0-color-background, 15%);
+$layer0-color: inverse($layer0-color-background);
+$layer0-color-disabled: darken($layer0-color, 50%);
+$layer0-color-hint: darken($layer0-color, 25%);
+
+$layer0: (
+  "color": $layer0-color,
+  "color-disabled": $layer0-color-disabled,
+  "color-hint": $layer0-color-hint,
+  "background-color": $layer0-color-background,
+  "background-color-selected": $layer0-color-background-selected,
+  "background-color-hover": $layer0-color-background-hover,
+  "background-color-disabled": $layer0-color-background-disabled,
+);
+
+.layer0 {
+  color: $layer0-color;
+  background-color: $layer0-color-background;
+
+  .hover:hover {
+    background-color: $layer0-color-background-hover;
+  }
+
+  .hint {
+    color: $layer0-color-hint;
+  }
+}
+
+.background-color-layer0 { background-color: $layer0-color; }
+
+
+// Layer 1
+
+$layer1-color-background: #201F25;
+$layer1-color-background-hover: lighten($layer1-color-background);
+$layer1-color-background-selected: lighten($layer1-color-background, 10%);
+$layer1-color-background-disabled: darken($layer1-color-background, 15%);
+$layer1-color: inverse($layer1-color-background);
+$layer1-color-disabled: darken($layer1-color, 50%);
+$layer1-color-hint: darken($layer1-color, 25%);
+
+$layer1: (
+  "color": $layer1-color,
+  "color-disabled": $layer1-color-disabled,
+  "color-hint": $layer1-color-hint,
+  "background-color": $layer1-color-background,
+  "background-color-selected": $layer1-color-background-selected,
+  "background-color-hover": $layer1-color-background-hover,
+  "background-color-disabled": $layer1-color-background-disabled,
+);
+
+.layer1 {
+  color: $layer1-color;
+  background-color: $layer1-color-background;
+
+  .hover:hover {
+    background-color: $layer1-color-background-hover;
+  }
+
+  .selected {
+    background-color: $layer1-color-background-selected;
+  }
+
+  .hint {
+    color: $layer1-color-hint;
+  }
+}
+
+.background-color-layer1 { background-color: $layer1-color; }
+
+
+// Layer 2
+
+$layer2-color-background: #313039;
+$layer2-color-background-hover: lighten($layer2-color-background);
+$layer2-color-background-selected: lighten($layer2-color-background, 4 * $mix-percentage);
+$layer2-color-background-disabled: darken($layer2-color-background, 15%);
+$layer2-color: inverse($layer2-color-background);
+$layer2-color-disabled: darken($layer2-color, 50%);
+$layer2-color-hint: darken($layer2-color, 25%);
+
+$layer2: (
+  "color": $layer2-color,
+  "color-disabled": $layer2-color-disabled,
+  "color-hint": $layer2-color-hint,
+  "background-color": $layer2-color-background,
+  "background-color-selected": $layer2-color-background-selected,
+  "background-color-hover": $layer2-color-background-hover,
+  "background-color-disabled": $layer2-color-background-disabled,
+);
+
+.layer2 {
+  background-color: $layer2-color-background;
+  color: $layer2-color;
+
+  .hover:hover {
+    background-color: $layer2-color-background-hover;
+  }
+
+  .selected {
+    background-color: $layer2-color-background-selected;
+  }
+
+  .hint {
+    color: $layer2-color-hint;
+  }
+}
+
+.background-color-layer2 { background-color: $layer2-color-background; }
+
+
+// Layer 3
+
+$layer3-color-background: #3b3a43;
+$layer3-color-background-hover: lighten($layer3-color-background);
+$layer3-color-background-selected: lighten($layer3-color-background, 4 * $mix-percentage);
+$layer3-color-background-disabled: darken($layer3-color-background, 15%);
+$layer3-color: inverse($layer3-color-background);
+$layer3-color-disabled: darken($layer3-color, 50%);
+$layer3-color-hint: darken($layer3-color, 25%);
+
+$layer3: (
+  "color": $layer3-color,
+  "color-disabled": $layer3-color-disabled,
+  "color-hint": $layer3-color-hint,
+  "background-color": $layer3-color-background,
+  "background-color-selected": $layer3-color-background-selected,
+  "background-color-hover": $layer3-color-background-hover,
+  "background-color-disabled": $layer3-color-background-disabled,
+);
+
+.layer3 {
+  background-color: $layer3-color-background;
+  color: $layer3-color;
+
+  .hover:hover {
+    background-color: $layer3-color-background-hover;
+  }
+
+  .selected {
+    background-color: $layer3-color-background-selected;
+  }
+
+  .hint {
+    color: $layer3-color-hint;
+  }
+}
+
+.background-color-layer3 { background-color: $layer3-color-background; }
+
+
+// Aggregate
+
+$layers: (
+  "layer0": $layer0,
+  "layer1": $layer1,
+  "layer2": $layer2,
+  "layer3": $layer3);
+$layers-next: (
+  "layer0": $layer1,
+  "layer1": $layer2,
+  "layer2": $layer3);
+
+
+// Layout
+
+$content-margin: 1rem;
+
+$border-radius: $content-margin / 4;
+$border-radius-large: $content-margin / 2;

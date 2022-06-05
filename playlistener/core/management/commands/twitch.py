@@ -166,15 +166,16 @@ class TwitchBot(commands.Bot):
             channel=context.channel.name).select_related("user", "user__spotify").get()
 
         try:
-            track = integration.user.spotify.get_current_track()
+            current = integration.user.spotify.get_current_track()
         except SpotifyException as exception:
             return [str(exception)]
 
-        if track is None or "name" not in track:
+        if current.get("item") is None or "name" not in current["item"]:
             return [f"{context.channel.name} isn't listening to anything on Spotify!"]
 
+        track = current["item"]
         url = track["external_urls"]["spotify"]
-        return [f"{describe_track(track)} ({url})"]
+        return [f"{describe_track(track)} {url.strip()}"]
 
     @commands.command()
     async def song(self, context: commands.Context):

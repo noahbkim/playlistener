@@ -2,18 +2,17 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.conf import settings
-from django.core.exceptions import ValidationError
 
 import requests
 import base64
-from dataclasses import dataclass
-from typing import Callable, Iterable, Optional, Any
+from typing import Callable, Iterable
 
 
 class Invitation(models.Model):
     """Allow a user to create an account on the server."""
 
     username = models.CharField(max_length=150, unique=True)
+    administrator = models.BooleanField(default=False)
 
     time_created = models.DateTimeField(default=timezone.now)
 

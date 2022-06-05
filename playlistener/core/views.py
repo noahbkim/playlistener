@@ -79,13 +79,16 @@ class RegistrationView(TemplateView):
         """Handle post username."""
 
         username = request.POST["username"]
+        if User.objects.filter(username=username).exists():
+            return redirect("core:login")
+
         invitation = Invitation.objects.filter(username=username).first()
         if invitation is None:
             return redirect(reverse("core:register") + "?error=uninvited")
 
         request.session["username"] = username
 
-        return redirect("core:oauth_spotify")
+        return redirect(reverse("core:oauth_spotify") + "?next=" + reverse("core:register_finish"))
 
 
 class FinishRegistrationView(TemplateView):

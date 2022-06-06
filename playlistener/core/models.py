@@ -163,7 +163,7 @@ class SpotifyAuthorization(models.Model):
             headers=self.make_headers()))
 
         if response.status_code != 200:
-            print(f"failed to get playlist: {response.content}")
+            print(f"failed to get current track: {response.content}")
             raise SpotifyException("failed to get current track")
 
         return response.json()

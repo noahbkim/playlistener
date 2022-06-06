@@ -170,7 +170,7 @@ class TwitchBot(commands.Bot):
         except SpotifyException as exception:
             return [str(exception)]
 
-        if current.get("item") is None or "name" not in current["item"]:
+        if current is None:
             return [f"{context.channel.name} isn't listening to anything on Spotify!"]
 
         track = current["item"]

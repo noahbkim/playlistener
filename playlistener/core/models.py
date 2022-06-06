@@ -162,6 +162,9 @@ class SpotifyAuthorization(models.Model):
             f"https://api.spotify.com/v1/me/player/currently-playing",
             headers=self.make_headers()))
 
+        if response.status_code == 204:
+            return None
+
         if response.status_code != 200:
             print(f"failed to get current track: {response.content}")
             raise SpotifyException("failed to get current track")

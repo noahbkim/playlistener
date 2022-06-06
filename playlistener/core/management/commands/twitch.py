@@ -58,12 +58,18 @@ def describe_queue(queued: bool, added: bool) -> str:
     return "added"
 
 
-def describe_track(track: dict) -> str:
+def describe_track(track: dict, include_url: bool = False) -> str:
     """Join artists, append title."""
 
     artists = ", ".join(artist["name"] for artist in track["artists"])
     title = track["name"]
-    return f"{artists} - {title}"
+
+    if include_url:
+        url = track["external_urls"]["spotify"].strip()
+        return f"{artists} - {title} {url}"
+
+    else:
+        return f"{artists} - {title}"
 
 
 class TwitchBot(commands.Bot):
@@ -173,15 +179,38 @@ class TwitchBot(commands.Bot):
         if current is None:
             return [f"{context.channel.name} isn't listening to anything on Spotify!"]
 
-        track = current["item"]
-        url = track["external_urls"]["spotify"]
-        return [f"{describe_track(track)} {url.strip()}"]
+        return [describe_track(current["item"], include_url=True)]
 
     @commands.command()
     async def song(self, context: commands.Context):
         """Queue a song."""
 
         messages = await self._song(context)
+        for message in messages:
+            await context.reply(message)
+
+    @sync_to_async
+    def _recent(self, context: commands.Context):
+        """Get the last couple songs."""
+
+        integration = TwitchIntegration.objects.filter(
+            channel=context.channel.name).select_related("user", "user__spotify").get()
+
+        try:
+            current = integration.user.spotify.get_recently_played(limit=3)
+        except SpotifyException as exception:
+            return [str(exception)]
+
+        if current is None:
+            return [f"{context.channel.name} isn't listening to anything on Spotify!"]
+
+        return [", ".join(describe_track(track, include_url=True) for track in current["items"])]
+
+    @commands.command()
+    async def recent(self, context: commands.Context):
+        """Queue a song."""
+
+        messages = await self._recent(context)
         for message in messages:
             await context.reply(message)
 

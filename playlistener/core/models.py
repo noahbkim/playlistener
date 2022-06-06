@@ -159,7 +159,7 @@ class SpotifyAuthorization(models.Model):
         """Get the currently playing track."""
 
         response = self.retry(lambda: requests.get(
-            f"https://api.spotify.com/v1/me/player/currently-playing",
+            "https://api.spotify.com/v1/me/player/currently-playing",
             headers=self.make_headers()))
 
         if response.status_code == 204:
@@ -168,6 +168,22 @@ class SpotifyAuthorization(models.Model):
         if response.status_code != 200:
             print(f"failed to get current track: {response.content}")
             raise SpotifyException("failed to get current track")
+
+        return response.json()
+
+    def get_recently_played(self, limit: int = 3) -> Optional[dict]:
+        """Get the recently played tracks of a user."""
+
+        response = self.retry(lambda: requests.get(
+            f"https://api.spotify.com/v1/me/player/recently-played?limit={limit}",
+            headers=self.make_headers()))
+
+        if response.status_code == 204:
+            return None
+
+        if response.status_code != 200:
+            print(f"failed to get recently played: {response.content}")
+            raise SpotifyException("failed to get recently played")
 
         return response.json()
 

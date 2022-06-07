@@ -3,14 +3,15 @@ from django.conf import settings
 from django.utils import timezone
 from asgiref.sync import sync_to_async
 
-from core.models import *
+from core.models import TwitchIntegrationUser, TwitchIntegration
 from common.spotify import find_first_spotify_track_link, find_first_spotify_playlist_link
 from common.errors import UsageError, InternalError
 
 import requests
 from twitchio.ext.commands import command, Bot, Context, Command
+from twitchio.ext.routines import routine, Routine
 from dataclasses import dataclass
-from typing import List, Callable, Coroutine, Iterable, Dict
+from typing import List, Callable, Coroutine, Iterable
 
 
 @dataclass
@@ -86,20 +87,42 @@ def get_playlist_url(uri: str) -> str:
 
 
 Later = Callable[[Coroutine], None]
-Callback = Callable[[Context, Later], None]
+CommandCallback = Callable[[Context, Later], None]
+RoutineCallback = Callable[[Later], None]
+
+
+def django_routine(*args, **kwargs) -> Callable[[RoutineCallback], Routine]:
+    """Same as below but more general."""
+
+    def decorator(synchronous: RoutineCallback) -> Routine:
+        """Just invoke."""
+
+        asynchronous = sync_to_async(synchronous)
+
+        async def actual():
+            """Pass in a list for adding coroutines."""
+
+            coroutines = []
+            await asynchronous(coroutines.append)
+            for coroutine in coroutines:
+                await coroutine
+
+        return routine(*args, **kwargs)(actual)
+
+    return decorator
 
 
 def django_command(
         *args,
         broadcaster_only: bool = False,
         mods_only: bool = False,
-        **kwargs) -> Callable[[Callback], Command]:
+        **kwargs) -> Callable[[CommandCallback], Command]:
     """A complicated wrapper to streamline database access."""
 
-    def decorator(callback: Callback) -> Command:
+    def decorator(synchronous: CommandCallback) -> Command:
         """Decorates a naive synchronous callback."""
 
-        asynchronous = sync_to_async(callback)
+        asynchronous = sync_to_async(synchronous)
 
         async def actual(context: Context):
             """Pass in a list for adding coroutines to execute outside."""
@@ -122,10 +145,10 @@ def django_command(
     return decorator
 
 
-def error_handling() -> Callable[[Callback], Callback]:
+def error_handling() -> Callable[[CommandCallback], CommandCallback]:
     """Adds a layer of exception handling for Spotify API access."""
 
-    def decorator(callback: Callback) -> Callback:
+    def decorator(callback: CommandCallback) -> CommandCallback:
         """Decorates a callback."""
 
         def actual(context: Context, later: Later):
@@ -147,10 +170,10 @@ def error_handling() -> Callable[[Callback], Callback]:
 IntegrationCallback = Callable[[Context, Later, TwitchIntegration], None]
 
 
-def with_integration(select_related: Iterable[str] = None) -> Callable[[IntegrationCallback], Callback]:
+def with_integration(select_related: Iterable[str] = None) -> Callable[[IntegrationCallback], CommandCallback]:
     """Look up the corresponding Twitch integration, fail silently."""
 
-    def decorator(callback: IntegrationCallback) -> Callback:
+    def decorator(callback: IntegrationCallback) -> CommandCallback:
         """Wrap the integration lookup."""
 
         def actual(context: Context, later: Later):
@@ -205,6 +228,8 @@ class TwitchBot(Bot):
         for integration in TwitchIntegration.objects.filter(enabled=True):
             channels.append(integration.channel)
 
+        self.notify.start()
+
         super().__init__(
             token=self.authorization.access_token,
             prefix="?",
@@ -214,6 +239,23 @@ class TwitchBot(Bot):
         """Print locally for verification."""
 
         print(f"Logged in as {self.nick}")
+
+    async def event_token_expired(self):
+        """Print locally."""
+
+        print(f"Token expired!")
+
+    @django_routine(minutes=5)
+    def notify(self, later: Later):
+        """Notify everyone about queueing."""
+
+        for channel in self.connected_channels:
+            integration = TwitchIntegration.objects.filter(channel=channel.name).first()
+            if integration is None:
+                continue
+
+            if integration.enabled and integration.add_to_queue or integration.add_to_playlist:
+                later(channel.send(f"use ?queue to add Spotify songs to {integration.user.first_name}'s playlist"))
 
     @django_command()
     @error_handling()

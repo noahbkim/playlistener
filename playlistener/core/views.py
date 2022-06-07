@@ -11,7 +11,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 import random
 import string
 
-from .models import User, Invitation, SpotifyAuthorization, SpotifyException, TwitchIntegration
+from common.errors import InternalError
+from .models import User, Invitation, SpotifyAuthorization, TwitchIntegration
 from .forms import TwitchIntegrationForm
 
 __all__ = (
@@ -63,7 +64,7 @@ class IndexView(LoginRequiredMixin, TemplateView):
 
         try:
             context["spotify_user"] = self.request.user.spotify.get_me()
-        except SpotifyException as exception:
+        except InternalError as exception:
             context["spotify_exception"] = exception
 
         return context

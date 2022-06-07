@@ -10,14 +10,18 @@
   {% endfor %}
 </ul>
 {% endif %}
-<div class="form-group split">
-  <div style="flex: 1;">
-    <label for="channel">Channel</label>
-    <input type="text" id="channel" name="channel" value="{{ integration.channel }}">
-  </div>
+<div class="form-group">
+  <label for="channel">Channel</label>
+  <input type="text" id="channel" name="channel" value="{{ integration.channel }}">
+</div>
+<div class="form-group split even">
   <div>
     <label for="delay">Delay</label>
     <input type="number" id="delay" name="delay" value="{{ integration.delay }}">
+  </div>
+  <div>
+    <label for="delay">Subscriber delay</label>
+    <input type="number" id="delay-subscriber" name="delay_subscriber" value="{{ integration.delay_subscriber }}">
   </div>
 </div>
 <div class="form-group split">

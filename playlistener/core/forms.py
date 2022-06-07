@@ -1,5 +1,6 @@
 from django.forms import ModelForm, ValidationError
 
+from common.errors import InternalError, UsageError
 from . import models
 
 
@@ -19,13 +20,19 @@ class TwitchIntegrationForm(ModelForm):
 
         try:
             self.user.spotify.get_playlist(playlist_id)
-        except models.InvalidPlaylistSpotifyException:
+        except UsageError:
             raise ValidationError("Playlist does not exist!")
-        except models.SpotifyException:
-            raise ValidationError("Failed to verify playlist, please check Spotify authorization")
+        except InternalError:
+            raise ValidationError("Failed to verify playlist, please check Spotify authorization!")
 
         return playlist_id
 
     class Meta:
         model = models.TwitchIntegration
-        fields = ("channel", "delay", "add_to_queue", "add_to_playlist", "playlist_id")
+        fields = (
+            "channel",
+            "queue_cooldown",
+            "queue_cooldown_subscriber",
+            "add_to_queue",
+            "add_to_playlist",
+            "playlist_id")

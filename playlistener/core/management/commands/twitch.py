@@ -5,6 +5,7 @@ from asgiref.sync import sync_to_async
 
 from core.models import *
 from common.spotify import find_first_spotify_track_link
+from common.errors import UsageError, InternalError
 
 import requests
 from twitchio.ext.commands import command, Bot, Context, Command
@@ -88,7 +89,11 @@ Later = Callable[[Coroutine], None]
 Callback = Callable[[Context, Later], None]
 
 
-def django_command(*args, **kwargs) -> Callable[[Callback], Command]:
+def django_command(
+        *args,
+        broadcaster_only: bool = False,
+        mods_only: bool = False,
+        **kwargs) -> Callable[[Callback], Command]:
     """A complicated wrapper to streamline database access."""
 
     def decorator(callback: Callback) -> Command:
@@ -98,6 +103,14 @@ def django_command(*args, **kwargs) -> Callable[[Callback], Command]:
 
         async def actual(context: Context):
             """Pass in a list for adding coroutines to execute outside."""
+
+            if broadcaster_only and not context.author.is_broadcaster:
+                await context.reply("sorry, you don't have permission to use this command!")
+                return
+
+            if mods_only and not context.author.is_broadcaster and not context.author.is_mod:
+                await context.reply("sorry, you don't have permission to use this command!")
+                return
 
             coroutines = []
             await asynchronous(context, coroutines.append)
@@ -109,7 +122,7 @@ def django_command(*args, **kwargs) -> Callable[[Callback], Command]:
     return decorator
 
 
-def spotify_error_handling() -> Callable[[Callback], Callback]:
+def error_handling() -> Callable[[Callback], Callback]:
     """Adds a layer of exception handling for Spotify API access."""
 
     def decorator(callback: Callback) -> Callback:
@@ -120,11 +133,11 @@ def spotify_error_handling() -> Callable[[Callback], Callback]:
 
             try:
                 callback(context, later)
-            except SpotifySemanticError as error:
+            except UsageError as error:
                 later(context.reply(str(error)))
-            except SpotifyRuntimeError as error:
+            except InternalError as error:
                 print(f"{error}: {error.details}")
-                later(context.send(str(error)))
+                later(context.send(f"error: {error}"))
 
         return actual
 
@@ -203,15 +216,10 @@ class TwitchBot(Bot):
         print(f"Logged in as {self.nick}")
 
     @django_command()
-    @spotify_error_handling()
+    @error_handling()
     @with_integration(select_related=("user", "user_spotify"))
     @with_user()
-    def queue(
-            self,
-            context: Context,
-            later: Later,
-            integration: TwitchIntegration,
-            user: TwitchIntegrationUser):
+    def queue(self, context: Context, later: Later, integration: TwitchIntegration, user: TwitchIntegrationUser):
         """Add a song to the queue or playlist."""
 
         if " " not in context.message.content.strip():
@@ -222,9 +230,13 @@ class TwitchBot(Bot):
             later(context.reply("sorry, you're banned from queueing songs!"))
             return
 
-        cooldown = user.cooldown(integration.delay)
+        is_subscriber = context.author.is_broadcaster or context.author.is_mod or context.author.is_subscriber
+        cooldown = user.cooldown(integration.queue_cooldown_subscriber if is_subscriber else integration.queue_cooldown)
         if cooldown > 0:
-            later(context.reply(f"sorry, you have to wait {cooldown} seconds to queue again!"))
+            message = f"sorry, you have to wait {round(cooldown)} seconds to queue again!"
+            if not is_subscriber and integration.queue_cooldown_subscriber < integration.queue_cooldown:
+                message += f" subscribe to only wait {round(integration.queue_cooldown_subscriber)} seconds per queue."
+            later(context.reply(message))
             return
 
         match = find_first_spotify_track_link(context.message.content)
@@ -253,162 +265,133 @@ class TwitchBot(Bot):
         user.time_queued = timezone.now()
         user.save()
 
-    @sync_to_async
-    def _playlist(self, context: Context):
+    @django_command()
+    @error_handling()
+    @with_integration()
+    def playlist(self, context: Context, later: Later, integration: TwitchIntegration):
         """Get the link to the playlist."""
 
-        integration = TwitchIntegration.objects.filter(channel=context.channel.name).get()
-        return [f"https://open.spotify.com/playlist/{integration.playlist_id}"]
+        later(context.reply(f"https://open.spotify.com/playlist/{integration.playlist_id}"))
 
-    @command()
-    async def playlist(self, context: Context):
-        """Queue a song."""
-
-        messages = await self._playlist(context)
-        for message in messages:
-            await context.reply(message)
-
-    @sync_to_async
-    def _song(self, context: Context):
+    @django_command()
+    @error_handling()
+    @with_integration(select_related=("user", "user__spotify"))
+    def song(self, context: Context, later: Later, integration: TwitchIntegration):
         """Get the current song."""
 
-        integration = TwitchIntegration.objects.filter(
-            channel=context.channel.name).select_related("user", "user__spotify").get()
+        current_track = integration.user.spotify.get_current_track()
+        if current_track is None:
+            later(context.reply(f"{integration.user.first_name} isn't listening to anything on Spotify!"))
+            return
 
-        try:
-            current = integration.user.spotify.get_current_track()
-        except SpotifyException as exception:
-            return [str(exception)]
+        later(context.reply(describe_track(current_track["item"], include_url=True)))
 
-        if current is None:
-            return [f"{context.channel.name} isn't listening to anything on Spotify!"]
-
-        return [describe_track(current["item"], include_url=True)]
-
-    @command()
-    async def song(self, context: Context):
-        """Queue a song."""
-
-        messages = await self._song(context)
-        for message in messages:
-            await context.reply(message)
-
-    @sync_to_async
-    def _recent(self, context: Context):
+    @django_command()
+    @error_handling()
+    @with_integration(select_related=("user", "user__spotify"))
+    def recent(self, context: Context, later: Later, integration: TwitchIntegration):
         """Get the last couple songs."""
 
-        integration = TwitchIntegration.objects.filter(
-            channel=context.channel.name).select_related("user", "user__spotify").get()
+        recent_tracks = integration.user.spotify.get_recently_played(limit=3)
+        if recent_tracks is None:
+            later(context.reply(f"{integration.user.first_name} isn't listening to anything on Spotify!"))
+            return
 
-        try:
-            current = integration.user.spotify.get_recently_played(limit=3)
-        except SpotifyException as exception:
-            return [str(exception)]
+        return [", ".join(describe_track(track, include_url=True) for track in recent_tracks["items"])]
 
-        if current is None:
-            return [f"{context.channel.name} isn't listening to anything on Spotify!"]
-
-        return [", ".join(describe_track(track, include_url=True) for track in current["items"])]
-
-    @command()
-    async def recent(self, context: Context):
-        """Queue a song."""
-
-        messages = await self._recent(context)
-        for message in messages:
-            await context.reply(message)
-
-    @sync_to_async
-    def _ban(self, context: Context) -> List[str]:
+    @django_command(mods_only=True)
+    @with_integration()
+    @with_user()
+    def ban(self, context: Context, later: Later, _: TwitchIntegration, user: TwitchIntegrationUser):
         """Ban a user from queueing songs."""
 
-        integration = TwitchIntegration.objects.filter(
-            channel=context.channel.name).select_related("user", "user__spotify").get()
-        user, _ = TwitchIntegrationUser.objects.get_or_create(
-            integration=integration,
-            name=context.message.content.split(maxsplit=1)[1].strip())
-
         if user.banned:
-            return [f"{user.name} is already banned!"]
+            later(context.reply(f"{user.name} is already banned!"))
+            return
 
         user.banned = True
         user.save()
-        return [f"banned {user.name}"]
+        later(context.reply(f"banned {user.name}"))
 
-    @command()
-    async def ban(self, context: Context):
-        """Queue a song."""
-
-        if not context.author.is_mod and not context.author.is_broadcaster:
-            await context.reply("you do not have access to this command!")
-            return
-
-        messages = await self._ban(context)
-        for message in messages:
-            await context.reply(message)
-
-    @sync_to_async
-    def _unban(self, context: Context) -> List[str]:
+    @django_command(mods_only=True)
+    @with_integration()
+    @with_user()
+    def unban(self, context: Context, later: Later, _: TwitchIntegration, user: TwitchIntegrationUser):
         """Ban a user from queueing songs."""
 
-        integration = TwitchIntegration.objects.filter(
-            channel=context.channel.name).select_related("user", "user__spotify").get()
-        user, _ = TwitchIntegrationUser.objects.get_or_create(
-            integration=integration,
-            name=context.message.content.split(maxsplit=1)[1].strip())
+        """Ban a user from queueing songs."""
 
         if not user.banned:
-            return [f"{user.name} isn't banned!"]
+            later(context.reply(f"{user.name} isn't banned!"))
+            return
 
         user.banned = False
         user.save()
-        return [f"unbanned {user.name}"]
+        later(context.reply(f"unbanned {user.name}"))
 
-    @command()
-    async def unban(self, context: Context):
-        """Queue a song."""
+    @django_command(mods_only=True)
+    @with_integration()
+    def cooldown(self, context: Context, later: Later, integration: TwitchIntegration):
+        """Get or set cooldown."""
 
-        if not context.author.is_mod and not context.author.is_broadcaster:
-            await context.reply("you do not have access to this command!")
-            return
-
-        messages = await self._unban(context)
-        for message in messages:
-            await context.reply(message)
-
-    @sync_to_async
-    def _delay(self, context: Context) -> List[str]:
-        """Get or set delay."""
-
-        integration = TwitchIntegration.objects.filter(channel=context.channel.name).get()
         parts = context.message.content.split(maxsplit=1)
 
         if len(parts) == 1:
-            return [f"current queue delay is {integration.delay} seconds"]
+            later(context.reply(f"queue cooldown is {integration.queue_cooldown} seconds"))
+
         elif len(parts) == 2:
             try:
-                delay = float(parts[1])
+                queue_cooldown = float(parts[1].strip())
             except ValueError:
-                return [f"expected numeric value for delay!"]
+                later(context.reply(f"expected numeric value for cooldown!"))
+                return
 
-            integration.delay = delay
+            integration.queue_cooldown = queue_cooldown
             integration.save()
-            return [f"set queue delay to {integration.delay} seconds"]
+            later(context.reply(f"set queue cooldown to {queue_cooldown} seconds"))
 
-        # Shouldn't be possible
-        return []
+    @django_command(mods_only=True)
+    @with_integration()
+    def subcooldown(self, context: Context, later: Later, integration: TwitchIntegration):
+        """Get or set subscriber cooldown."""
 
-    @command()
-    async def delay(self, context: Context):
-        """Queue a song."""
+        parts = context.message.content.split(maxsplit=1)
 
-        if not context.author.is_mod and not context.author.is_broadcaster:
-            await context.reply("you do not have access to this command!")
+        if len(parts) == 1:
+            later(context.reply(f"queue cooldown for subscribers is {integration.queue_cooldown_subscriber} seconds"))
+
+        elif len(parts) == 2:
+            try:
+                queue_cooldown = float(parts[1].strip())
+            except ValueError:
+                later(context.reply(f"expected numeric value for cooldown!"))
+                return
+
+            integration.queue_cooldown_subscriber = queue_cooldown
+            integration.save()
+            later(context.reply(f"set subscriber queue cooldown to {queue_cooldown} seconds"))
+
+    @django_command(mods_only=True)
+    @with_integration()
+    def mode(self, context: Context, later: Later, integration: TwitchIntegration):
+        """Turn queueing/playlist on and off."""
+
+        parts = context.message.content.split(maxsplit=1)
+
+        if len(parts) == 1:
+            later(context.reply(f"the current mode is {integration.get_mode()}"))
             return
 
-        messages = await self._delay(context)
-        for message in messages:
-            await context.reply(message)
+        elif len(parts) == 2:
+            mode = parts[1].strip()
+            if mode not in TwitchIntegration.Mode.options:
+                modes = ", ".join(TwitchIntegration.Mode.options)
+                later(context.reply(f"{mode} is not a valid mode; options are {modes}"))
+                return
+
+            integration.set_mode(mode)
+            integration.save()
+            later(context.reply(f"set mode to {mode}"))
 
 
 class Command(BaseCommand):
@@ -417,6 +400,5 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         """Run the Twitch bot."""
 
-        print(find_first_spotify_track_link("?queue https://open.spotify.com/track/0kbKmmmVJgOLosG0heZWTU?si=a43d3ad6b8254001"))
-        # bot = TwitchBot()
-        # bot.run()
+        bot = TwitchBot()
+        bot.run()

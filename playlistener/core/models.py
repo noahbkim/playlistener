@@ -5,15 +5,14 @@ from django.conf import settings
 
 import requests
 import base64
+import enum
 from typing import Callable, Iterable, Optional
 
+from common.errors import UsageError, InternalError
+
 __all__ = (
+    "User",
     "Invitation",
-    "SpotifyException",
-    "SpotifySemanticError",
-    "SpotifyRuntimeError",
-    "NoQueueSpotifyException",
-    "InvalidPlaylistSpotifyException",
     "SpotifyAuthorization",
     "TwitchIntegration",
     "TwitchIntegrationUser",)
@@ -26,32 +25,6 @@ class Invitation(models.Model):
     administrator = models.BooleanField(default=False)
 
     time_created = models.DateTimeField(default=timezone.now)
-
-
-class SpotifyException(Exception):
-    """Thrown on unrecoverable Spotify errors."""
-
-    def __init__(self, reason: str, details: str = None):
-        """Store details in addition to reason."""
-
-        super().__init__(reason)
-        self.details = details
-
-
-class SpotifySemanticError(SpotifyException):
-    """User-caused error."""
-
-
-class SpotifyRuntimeError(SpotifyException):
-    """Issue with API access."""
-
-
-class NoQueueSpotifyException(SpotifyException):
-    """Thrown when a track can't be added to queue."""
-
-
-class InvalidPlaylistSpotifyException(SpotifyException):
-    """Thrown specifically on 404 from accessing playlist."""
 
 
 class SpotifyAuthorization(models.Model):
@@ -114,8 +87,9 @@ class SpotifyAuthorization(models.Model):
         """Update data based on authorization response."""
 
         if response.status_code != 200:
-            print("failed to authorize with Spotify:", response.json())
-            raise SpotifyException("failed to authorize with Spotify")
+            raise InternalError(
+                "failed to authorize with Spotify, please reauthorize",
+                details=f"status {response.status_code}; {response.content}")
 
         data = response.json()
         self.access_token = data["access_token"]
@@ -162,8 +136,9 @@ class SpotifyAuthorization(models.Model):
             headers=self.make_headers()))
 
         if response.status_code != 200:
-            print(f"failed to add items to playlist: {response.content}")
-            raise SpotifyException("failed to access authorized user data")
+            raise InternalError(
+                "failed to access authorized user's data",
+                details=f"status {response.status_code}; {response.content}")
 
         return response.json()
 
@@ -175,9 +150,9 @@ class SpotifyAuthorization(models.Model):
             headers=self.make_headers()))
 
         if response.status_code == 404:
-            raise SpotifySemanticError("sorry, this track doesn't seem to exist!")
+            raise UsageError("sorry, this track doesn't seem to exist!")
         elif response.status_code != 200:
-            raise SpotifyRuntimeError(
+            raise InternalError(
                 f"failed to retrieve track ID {track_id}",
                 details=f"status {response.status_code}; {response.content}")
 
@@ -194,8 +169,9 @@ class SpotifyAuthorization(models.Model):
             return None
 
         if response.status_code != 200:
-            print(f"failed to get current track: {response.content}")
-            raise SpotifyException("failed to get current track")
+            raise InternalError(
+                f"failed to retrieve current track",
+                details=f"status {response.status_code}; {response.content}")
 
         return response.json()
 
@@ -210,8 +186,9 @@ class SpotifyAuthorization(models.Model):
             return None
 
         if response.status_code != 200:
-            print(f"failed to get recently played: {response.content}")
-            raise SpotifyException("failed to get recently played")
+            raise InternalError(
+                f"failed to retrieve recently played tracks",
+                details=f"status {response.status_code}; {response.content}")
 
         return response.json()
 
@@ -223,12 +200,12 @@ class SpotifyAuthorization(models.Model):
             headers=self.make_headers()))
 
         if response.status_code == 404:
-            print(f"playlist does not exist: {response.content}")
-            raise InvalidPlaylistSpotifyException("playlist does not exist")
+            raise UsageError("sorry, this playlist doesn't seem to exist!")
 
         if response.status_code != 200:
-            print(f"failed to get playlist: {response.content}")
-            raise SpotifyException("failed to get playlist")
+            raise InternalError(
+                "failed to retrieve playlist",
+                details=f"status {response.status_code}; {response.content}")
 
         return response.json()
 
@@ -241,7 +218,7 @@ class SpotifyAuthorization(models.Model):
             json={"uris": uris}))
 
         if response.status_code != 201:
-            raise SpotifyRuntimeError(
+            raise InternalError(
                 "failed to add items to playlist",
                 details=f"status {response.status_code}; {response.content}")
 
@@ -255,10 +232,10 @@ class SpotifyAuthorization(models.Model):
         if response.status_code == 404 and response.headers.get("Content-Type") == "application/json":
             if error := response.json().get("error"):
                 if error.get("reason") == "NO_ACTIVE_DEVICE":
-                    raise SpotifySemanticError(f"{self.user.first_name} isn't listening to Spotify right now!")
+                    raise UsageError(f"{self.user.first_name} isn't listening to Spotify right now!")
 
         if response.status_code != 204:
-            raise SpotifyRuntimeError(
+            raise InternalError(
                 "failed to add item to queue",
                 details=f"status {response.status_code}; {response.content}")
 
@@ -282,11 +259,41 @@ class TwitchIntegration(Integration):
     user = models.ForeignKey(to=User, on_delete=models.CASCADE, related_name="twitch_integrations")
 
     channel = models.CharField(max_length=100, unique=True)
-    delay = models.FloatField(default=60)
+    queue_cooldown = models.FloatField(default=60)
+    queue_cooldown_subscriber = models.FloatField(default=15)
 
     add_to_queue = models.BooleanField(default=False)
     add_to_playlist = models.BooleanField(default=True)
     playlist_id = models.CharField(max_length=50, null=True, blank=True)
+
+    class Mode:
+        OFF = "off"
+        QUEUE = "queue"
+        PLAYLIST = "playlist"
+        BOTH = "both"
+
+        options = {OFF, QUEUE, PLAYLIST, BOTH}
+
+    def get_mode(self) -> str:
+        if self.add_to_queue:
+            if self.add_to_playlist:
+                return TwitchIntegration.Mode.BOTH
+            else:
+                return TwitchIntegration.Mode.QUEUE
+        elif self.add_to_playlist:
+            return TwitchIntegration.Mode.PLAYLIST
+        else:
+            return TwitchIntegration.Mode.OFF
+
+    def set_mode(self, mode: Mode):
+        """Try to set fields based on mode."""
+
+        if mode == TwitchIntegration.Mode.BOTH or mode == TwitchIntegration.Mode.QUEUE:
+            self.add_to_queue = True
+        if mode == TwitchIntegration.Mode.BOTH or mode == TwitchIntegration.Mode.PLAYLIST:
+            if self.playlist_id is None:
+                raise UsageError("playlist is not configured!")
+            self.add_to_playlist = True
 
 
 class TwitchIntegrationUser(models.Model):

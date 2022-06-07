@@ -55,6 +55,10 @@ body {
 
 .windowless {
   margin-bottom: 2 * $content-margin;
+
+  *:first-child {
+    margin-top: 0;
+  }
 }
 
 .float-right {

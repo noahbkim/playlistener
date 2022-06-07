@@ -50,6 +50,41 @@
   <div class="actual">
     <h2 class="header">Twitch Integrations</h2>
     <div class="content">
+      <div class="windowless">
+        <p>
+          The playlistener Twitch integration allows chatters to queue songs to your Spotify account or add them to a preselected playlist.
+          The bot includes bans, cooldowns, and live configuration for moderators and broadcasters.
+        </p>
+        <ul>
+          <li><code>?queue</code> adds a song to the queue or selected playlist based on configuration.</li>
+          <li><code>?playlist</code> links the configured playlist.</li>
+          <li><code>?song</code> lists the current song the broadcaster is listening to.</li>
+          <li><code>?recent</code> lists the last couple songs the broadcaster has listened to.</li>
+          <li><code>?ban &lt;username&gt;</code> bans a user from queueing songs.</li>
+          <li><code>?unban &lt;username&gt;</code> unbans a user from queueing songs.</li>
+          <li><code>?cooldown &lt;username&gt; &lt;seconds&gt;</code> times a user out from queueing; zero or <code>clear</code> to remove.</li>
+          <li>
+            <code>?config &lt;key&gt; [value]</code> query or set a config variable:
+            <ul>
+              <li><code>cooldown</code>: the variable representing the number of seconds between user queues.</li>
+              <li><code>subcooldown</code>: the cooldown for subscribers.</li>
+              <li><code>playlist</code>: url to the target playlist for adding songs; must be public.</li>
+            </ul>
+          </li>
+          <li>
+            <code>?mode &lt;mode&gt;</code> set the mode of the bot; modes are:
+            <ul>
+              <li><code>none</code>: don't add to queue or playlist.</li>
+              <li><code>queue</code>: add to queue only.</li>
+              <li><code>playlist</code>: add to playlist only; requires playlist to be set.</li>
+              <li><code>both</code>: add to both queue and playlist.</li>
+            </ul>
+          </li>
+          <li><code>?on</code> turn the bot on.</li>
+          <li><code>?off</code> turn the bot off, preventing <code>?queue</code> from being used.</li>
+
+        </ul>
+      </div>
       {% for integration in request.user.twitch_integrations.all %}
       <div class="window layer2">
         <div class="accent background-color-twitch"></div>

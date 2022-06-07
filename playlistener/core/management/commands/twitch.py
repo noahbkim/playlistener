@@ -264,6 +264,10 @@ class TwitchBot(Bot):
     def queue(self, context: Context, later: Later, integration: TwitchIntegration, user: TwitchIntegrationUser):
         """Add a song to the queue or playlist."""
 
+        if not integration.enabled:
+            later(context.reply(f"sorry, playlistener has been turned off!"))
+            return
+
         if " " not in context.message.content.strip():
             later(context.reply(f"use this command to add Spotify links to {integration.user.first_name}'s queue"))
             return
@@ -320,6 +324,10 @@ class TwitchBot(Bot):
     @with_integration()
     def playlist(self, context: Context, later: Later, integration: TwitchIntegration):
         """Get the link to the playlist."""
+
+        if integration.playlist_id is None:
+            later(context.reply("no playlist is configured for this channel"))
+            return
 
         later(context.reply(get_playlist_url(integration.playlist_id)))
 

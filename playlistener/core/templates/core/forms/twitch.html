@@ -10,18 +10,27 @@
   {% endfor %}
 </ul>
 {% endif %}
-<div class="form-group">
-  <label for="channel">Channel</label>
-  <input type="text" id="channel" name="channel" value="{{ integration.channel }}">
+<div class="form-group split">
+  <div style="flex: 1;">
+    <label for="channel">Channel</label>
+    <input type="text" id="channel" name="channel" value="{{ integration.channel }}">
+  </div>
+  <div>
+    <label for="enabled">Enabled</label>
+    <div class="checkbox">
+      <input type="checkbox" name="enabled" id="enabled" {% if integration.enabled %}checked{% endif %} />
+      <div class="check"></div>
+    </div>
+  </div>
 </div>
 <div class="form-group split even">
   <div>
-    <label for="delay">Delay</label>
-    <input type="number" id="delay" name="delay" value="{{ integration.delay }}">
+    <label for="delay">Cooldown</label>
+    <input type="number" id="delay" name="delay" value="{{ integration.queue_cooldown }}">
   </div>
   <div>
-    <label for="delay">Subscriber delay</label>
-    <input type="number" id="delay-subscriber" name="delay_subscriber" value="{{ integration.delay_subscriber }}">
+    <label for="delay-subscriber">Subscriber cooldown</label>
+    <input type="number" id="delay-subscriber" name="delay_subscriber" value="{{ integration.queue_cooldown_subscriber }}">
   </div>
 </div>
 <div class="form-group split">

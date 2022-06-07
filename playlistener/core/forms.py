@@ -31,6 +31,7 @@ class TwitchIntegrationForm(ModelForm):
         model = models.TwitchIntegration
         fields = (
             "channel",
+            "enabled",
             "queue_cooldown",
             "queue_cooldown_subscriber",
             "add_to_queue",

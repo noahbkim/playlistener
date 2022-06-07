@@ -259,6 +259,7 @@ class TwitchIntegration(Integration):
     user = models.ForeignKey(to=User, on_delete=models.CASCADE, related_name="twitch_integrations")
 
     channel = models.CharField(max_length=100, unique=True)
+
     queue_cooldown = models.FloatField(default=60)
     queue_cooldown_subscriber = models.FloatField(default=15)
 
@@ -267,12 +268,12 @@ class TwitchIntegration(Integration):
     playlist_id = models.CharField(max_length=50, null=True, blank=True)
 
     class Mode:
-        OFF = "off"
+        NONE = "none"
         QUEUE = "queue"
         PLAYLIST = "playlist"
         BOTH = "both"
 
-        options = {OFF, QUEUE, PLAYLIST, BOTH}
+        options = {NONE, QUEUE, PLAYLIST, BOTH}
 
     def get_mode(self) -> str:
         if self.add_to_queue:
@@ -283,17 +284,19 @@ class TwitchIntegration(Integration):
         elif self.add_to_playlist:
             return TwitchIntegration.Mode.PLAYLIST
         else:
-            return TwitchIntegration.Mode.OFF
+            return TwitchIntegration.Mode.NONE
 
     def set_mode(self, mode: Mode):
         """Try to set fields based on mode."""
 
-        if mode == TwitchIntegration.Mode.BOTH or mode == TwitchIntegration.Mode.QUEUE:
-            self.add_to_queue = True
+        self.add_to_queue = mode == TwitchIntegration.Mode.BOTH or mode == TwitchIntegration.Mode.QUEUE
+
         if mode == TwitchIntegration.Mode.BOTH or mode == TwitchIntegration.Mode.PLAYLIST:
             if self.playlist_id is None:
                 raise UsageError("playlist is not configured!")
             self.add_to_playlist = True
+        else:
+            self.add_to_playlist = False
 
 
 class TwitchIntegrationUser(models.Model):
@@ -305,14 +308,8 @@ class TwitchIntegrationUser(models.Model):
     banned = models.BooleanField(default=False)
 
     time_created = models.DateTimeField(default=timezone.now)
-    time_queued = models.DateTimeField(null=True, blank=True, default=None)
-
-    def cooldown(self, delay: float) -> float:
-        """Check if the user has queued a song within the delay period."""
-
-        if self.time_queued is None:
-            return 0
-        return self.time_queued + timezone.timedelta(seconds=delay) - timezone.now()
+    time_cooldown = models.DateTimeField(null=True, blank=True, default=None)
+    manual_cooldown = models.BooleanField(default=False)
 
 
 class DiscordIntegration(Integration):

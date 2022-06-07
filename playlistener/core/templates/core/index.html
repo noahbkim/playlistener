@@ -66,18 +66,11 @@
           <li>
             <code>?config &lt;key&gt; [value]</code> query or set a config variable:
             <ul>
-              <li><code>cooldown</code>: the variable representing the number of seconds between user queues.</li>
-              <li><code>subcooldown</code>: the cooldown for subscribers.</li>
+              <li><code>usequeue</code>: whether queueing is <code>on</code> or <code>off</code>.</li>
+              <li><code>useplaylist</code>: whether adding to the playlist is <code>on</code> or <code>off</code>.</li>
+              <li><code>cooldown</code>: the number of seconds between chatteer queues.</li>
+              <li><code>subcooldown</code>: the cooldown in seconds for subscribers.</li>
               <li><code>playlist</code>: url to the target playlist for adding songs; must be public.</li>
-            </ul>
-          </li>
-          <li>
-            <code>?mode &lt;mode&gt;</code> set the mode of the bot; modes are:
-            <ul>
-              <li><code>none</code>: don't add to queue or playlist.</li>
-              <li><code>queue</code>: add to queue only.</li>
-              <li><code>playlist</code>: add to playlist only; requires playlist to be set.</li>
-              <li><code>both</code>: add to both queue and playlist.</li>
             </ul>
           </li>
           <li><code>?on</code> turn the bot on.</li>

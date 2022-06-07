@@ -431,14 +431,10 @@ class TwitchBot(Bot):
                 later(context.reply(f"{name} has no cooldown"))
 
         elif len(parts) == 3:
-            if parts[2] == "clear":
-                queue_cooldown = 0
-            else:
-                try:
-                    queue_cooldown = float(parts[2].strip())
-                except ValueError:
-                    later(context.reply(f"expected numeric value or clear for cooldown!"))
-                    return
+            queue_cooldown = 0 if parts[2] == "clear" else try_float(parts[2])
+            if queue_cooldown is None:
+                later(context.reply(f"expected numeric value or clear for cooldown!"))
+                return
 
             if queue_cooldown <= 0:
                 user.time_cooldown = None

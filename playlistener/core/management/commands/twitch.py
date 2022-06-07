@@ -11,7 +11,7 @@ import requests
 from twitchio.ext.commands import command, Bot, Context, Command
 from twitchio.ext.routines import routine, Routine
 from dataclasses import dataclass
-from typing import List, Callable, Coroutine, Iterable
+from typing import List, Callable, Coroutine, Iterable, Optional
 
 
 @dataclass
@@ -84,6 +84,26 @@ def get_playlist_url(uri: str) -> str:
     """Generate a Spotify track link."""
 
     return f"https://open.spotify.com/playlist/{uri}"
+
+
+def try_float(value: str) -> Optional[float]:
+    """Try to parse a float."""
+
+    try:
+        return float(value.strip())
+    except ValueError:
+        return None
+
+
+def try_bool(value: str) -> Optional[bool]:
+    """Try to parse a bool."""
+
+    lower = value.lower()
+    if lower in {"true", "on", "yes"}:
+        return True
+    elif lower in {"false", "off", "no"}:
+        return False
+    return None
 
 
 Later = Callable[[Coroutine], None]
@@ -433,6 +453,8 @@ class TwitchBot(Bot):
 
         parts = context.message.content.split(maxsplit=3)
         handlers = {
+            "usequeue": self.config_usequeue,
+            "useplaylist": self.config_useplaylist,
             "cooldown": self.config_cooldown,
             "subcooldown": self.config_subcooldown,
             "playlist": self.config_playlist}
@@ -460,9 +482,8 @@ class TwitchBot(Bot):
             later(context.reply(f"queue cooldown is {round(integration.queue_cooldown)} seconds"))
             return
 
-        try:
-            queue_cooldown = float(value.strip())
-        except ValueError:
+        queue_cooldown = try_float(value)
+        if queue_cooldown is None:
             later(context.reply(f"expected numeric value for cooldown!"))
             return
 
@@ -478,15 +499,48 @@ class TwitchBot(Bot):
             later(context.reply(f"subscriber queue cooldown is {round(integration.queue_cooldown_subscriber)} seconds"))
             return
 
-        try:
-            subscriber_queue_cooldown = float(value.strip())
-        except ValueError:
+        subscriber_queue_cooldown = try_float(value)
+        if subscriber_queue_cooldown is None:
             later(context.reply(f"expected numeric value for cooldown!"))
             return
 
         integration.queue_cooldown_subscriber = subscriber_queue_cooldown
         integration.save()
         later(context.reply(f"set subscriber queue cooldown to {subscriber_queue_cooldown} seconds"))
+
+    @staticmethod
+    def config_usequeue(context: Context, later: Later, integration: TwitchIntegration, value: str = None):
+        """Toggle queueing."""
+
+        if value is None:
+            later(context.reply("queueing is on" if integration.add_to_queue else "queueing is off"))
+            return
+
+        add_to_queue = try_bool(value)
+        if add_to_queue is None:
+            later(context.reply("expected value to be on or off"))
+            return
+
+        integration.add_to_queue = add_to_queue
+        integration.save()
+        later(context.reply("queueing is enabled" if integration.add_to_queue else "queueing is off"))
+
+    @staticmethod
+    def config_useplaylist(context: Context, later: Later, integration: TwitchIntegration, value: str = None):
+        """Toggle queueing."""
+
+        if value is None:
+            later(context.reply("add to playlist is on" if integration.add_to_queue else "add to playlist is off"))
+            return
+
+        add_to_queue = try_bool(value)
+        if add_to_queue is None:
+            later(context.reply("expected value to be on or off"))
+            return
+
+        integration.add_to_queue = add_to_queue
+        integration.save()
+        later(context.reply("add to playlist is on" if integration.add_to_queue else "add to playlist is off"))
 
     @staticmethod
     def config_playlist(context: Context, later: Later, integration: TwitchIntegration, value: str = None):
@@ -515,28 +569,6 @@ class TwitchBot(Bot):
         playlist_name = playlist["name"]
         later(context.reply(f"set playlist to {playlist_name} {playlist_url}"))
         return
-
-    @django_command(mods_only=True)
-    @with_integration()
-    def mode(self, context: Context, later: Later, integration: TwitchIntegration):
-        """Set queue mode."""
-
-        parts = context.message.content.split(maxsplit=1)
-
-        if len(parts) == 1:
-            later(context.reply(f"the current mode is {integration.get_mode()}"))
-            return
-
-        elif len(parts) == 2:
-            mode = parts[1].strip()
-            if mode not in TwitchIntegration.Mode.options:
-                modes = ", ".join(TwitchIntegration.Mode.options)
-                later(context.reply(f"{mode} is not a valid mode; options are {modes}"))
-                return
-
-            integration.set_mode(mode)
-            integration.save()
-            later(context.reply(f"set mode to {mode}"))
 
     @django_command(mods_only=True)
     @with_integration()

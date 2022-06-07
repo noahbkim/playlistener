@@ -267,37 +267,6 @@ class TwitchIntegration(Integration):
     add_to_playlist = models.BooleanField(default=True)
     playlist_id = models.CharField(max_length=50, null=True, blank=True)
 
-    class Mode:
-        NONE = "none"
-        QUEUE = "queue"
-        PLAYLIST = "playlist"
-        BOTH = "both"
-
-        options = {NONE, QUEUE, PLAYLIST, BOTH}
-
-    def get_mode(self) -> str:
-        if self.add_to_queue:
-            if self.add_to_playlist:
-                return TwitchIntegration.Mode.BOTH
-            else:
-                return TwitchIntegration.Mode.QUEUE
-        elif self.add_to_playlist:
-            return TwitchIntegration.Mode.PLAYLIST
-        else:
-            return TwitchIntegration.Mode.NONE
-
-    def set_mode(self, mode: Mode):
-        """Try to set fields based on mode."""
-
-        self.add_to_queue = mode == TwitchIntegration.Mode.BOTH or mode == TwitchIntegration.Mode.QUEUE
-
-        if mode == TwitchIntegration.Mode.BOTH or mode == TwitchIntegration.Mode.PLAYLIST:
-            if self.playlist_id is None:
-                raise UsageError("playlist is not configured!")
-            self.add_to_playlist = True
-        else:
-            self.add_to_playlist = False
-
 
 class TwitchIntegrationUser(models.Model):
     """Used for bans and timeouts."""

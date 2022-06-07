@@ -7,6 +7,17 @@ import requests
 import base64
 from typing import Callable, Iterable, Optional
 
+__all__ = (
+    "Invitation",
+    "SpotifyException",
+    "SpotifySemanticError",
+    "SpotifyRuntimeError",
+    "NoQueueSpotifyException",
+    "InvalidPlaylistSpotifyException",
+    "SpotifyAuthorization",
+    "TwitchIntegration",
+    "TwitchIntegrationUser",)
+
 
 class Invitation(models.Model):
     """Allow a user to create an account on the server."""
@@ -19,6 +30,20 @@ class Invitation(models.Model):
 
 class SpotifyException(Exception):
     """Thrown on unrecoverable Spotify errors."""
+
+    def __init__(self, reason: str, details: str = None):
+        """Store details in addition to reason."""
+
+        super().__init__(reason)
+        self.details = details
+
+
+class SpotifySemanticError(SpotifyException):
+    """User-caused error."""
+
+
+class SpotifyRuntimeError(SpotifyException):
+    """Issue with API access."""
 
 
 class NoQueueSpotifyException(SpotifyException):
@@ -149,9 +174,12 @@ class SpotifyAuthorization(models.Model):
             f"https://api.spotify.com/v1/tracks/{track_id}",
             headers=self.make_headers()))
 
-        if response.status_code != 200:
-            print(f"failed to get track: {response.content}")
-            raise SpotifyException("failed to get track")
+        if response.status_code == 404:
+            raise SpotifySemanticError("sorry, this track doesn't seem to exist!")
+        elif response.status_code != 200:
+            raise SpotifyRuntimeError(
+                f"failed to retrieve track ID {track_id}",
+                details=f"status {response.status_code}; {response.content}")
 
         return response.json()
 
@@ -213,8 +241,9 @@ class SpotifyAuthorization(models.Model):
             json={"uris": uris}))
 
         if response.status_code != 201:
-            print(f"failed to add items to playlist: {response.content}")
-            raise SpotifyException("couldn't add to playlist")
+            raise SpotifyRuntimeError(
+                "failed to add items to playlist",
+                details=f"status {response.status_code}; {response.content}")
 
     def add_item_to_queue(self, uri: str):
         """Add a track to a queue."""
@@ -223,15 +252,15 @@ class SpotifyAuthorization(models.Model):
             f"https://api.spotify.com/v1/me/player/queue?uri={uri}",
             headers=self.make_headers()))
 
-        if response.status_code == 404:
-            data = response.json()
-            if error := data.get("error"):
+        if response.status_code == 404 and response.headers.get("Content-Type") == "application/json":
+            if error := response.json().get("error"):
                 if error.get("reason") == "NO_ACTIVE_DEVICE":
-                    raise NoQueueSpotifyException(f"{self.user.first_name} isn't listening to music")
+                    raise SpotifySemanticError(f"{self.user.first_name} isn't listening to Spotify right now!")
 
         if response.status_code != 204:
-            print(f"failed to add item to queue: {response.content}")
-            raise SpotifyException("failed to add item to queue")
+            raise SpotifyRuntimeError(
+                "failed to add item to queue",
+                details=f"status {response.status_code}; {response.content}")
 
 
 class Integration(models.Model):
@@ -270,6 +299,13 @@ class TwitchIntegrationUser(models.Model):
 
     time_created = models.DateTimeField(default=timezone.now)
     time_queued = models.DateTimeField(null=True, blank=True, default=None)
+
+    def cooldown(self, delay: float) -> float:
+        """Check if the user has queued a song within the delay period."""
+
+        if self.time_queued is None:
+            return 0
+        return self.time_queued + timezone.timedelta(seconds=delay) - timezone.now()
 
 
 class DiscordIntegration(Integration):

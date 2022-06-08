@@ -51,7 +51,7 @@ class TwitchAuthorization:
         self.token_type = response["token_type"]
 
 
-def describe_queue(queued: bool, added: bool) -> str:
+def describe_queue_action(queued: bool, added: bool) -> str:
     """Describe the action of adding a track."""
 
     if queued:
@@ -59,6 +59,16 @@ def describe_queue(queued: bool, added: bool) -> str:
             return "queued and added"
         return "queued"
     return "added"
+
+
+def describe_queue_destination(queued: bool, added: bool) -> str:
+    """Describe the action of adding a track."""
+
+    if queued:
+        if added:
+            return "queue and playlist"
+        return "queue"
+    return "playlist"
 
 
 def describe_track(track: dict, include_url: bool = False) -> str:
@@ -326,8 +336,14 @@ class TwitchBot(Bot):
             later(context.reply(f"sorry, playlistener has been turned off!"))
             return
 
+        if not integration.add_to_queue and not integration.add_to_playlist:
+            later(context.send(f"neither the queue nor playlist are enabled right now!"))
+            return
+
         if " " not in context.message.content.strip():
-            later(context.reply(f"use this command to add Spotify links to {integration.user.first_name}'s queue"))
+            first_name = integration.user.first_name
+            destination = describe_queue_destination(integration.add_to_queue, integration.add_to_playlist)
+            later(context.reply(f"use this command to add Spotify links to {first_name}'s {destination}"))
             return
 
         if user.banned:
@@ -370,14 +386,10 @@ class TwitchBot(Bot):
             integration.user.spotify.add_items_to_playlist(integration.playlist_id, (track_uri,))
             added_to_playlist = True
 
-        if added_to_playlist or added_to_queue:
-            later(context.send(f"{describe_queue(added_to_queue, added_to_playlist)} {describe_track(track_info)}"))
-            integration.queue_count += 1
-            user.queue_count += 1
-            integration.save()
-
-        else:
-            later(context.send(f"neither the queue nor playlist are enabled right now!"))
+        later(context.send(f"{describe_queue_action(added_to_queue, added_to_playlist)} {describe_track(track_info)}"))
+        integration.queue_count += 1
+        user.queue_count += 1
+        integration.save()
 
         queue_cooldown = integration.queue_cooldown_subscriber if is_subscriber else integration.queue_cooldown
         user.time_cooldown = timezone.now() + timezone.timedelta(seconds=queue_cooldown)

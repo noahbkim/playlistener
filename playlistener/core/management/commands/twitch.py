@@ -297,7 +297,6 @@ class TwitchBot(Bot):
             return
 
         is_subscriber = context.author.is_broadcaster or context.author.is_mod or context.author.is_subscriber
-        queue_cooldown = integration.queue_cooldown_subscriber if is_subscriber else integration.queue_cooldown
 
         if user.time_cooldown is not None and user.time_cooldown > timezone.now():
             difference = user.time_cooldown - timezone.now()
@@ -335,8 +334,15 @@ class TwitchBot(Bot):
 
         if added_to_playlist or added_to_queue:
             later(context.send(f"{describe_queue(added_to_queue, added_to_playlist)} {describe_track(track_info)}"))
+            integration.queue_count += 1
+            integration.save()
 
+        else:
+            later(context.send(f"neither the queue nor playlist are enabled right now!"))
+
+        queue_cooldown = integration.queue_cooldown_subscriber if is_subscriber else integration.queue_cooldown
         user.time_cooldown = timezone.now() + timezone.timedelta(seconds=queue_cooldown)
+        user.queue_count += 1
         user.save()
 
     @django_command()
@@ -363,6 +369,16 @@ class TwitchBot(Bot):
             return
 
         later(context.reply(describe_track(current_track["item"], include_url=True)))
+
+    @django_command()
+    @with_integration()
+    @with_user()
+    def count(self, context: Context, later: Later, integration: TwitchIntegration, user: TwitchIntegrationUser):
+        """Get the count of recommendations for a user."""
+
+        later(context.reply(
+            f"{user.name} has queued {user.queue_count} of {integration.queue_count} total songs"
+            f" on {context.channel.name}'s channel"))
 
     @django_command()
     @error_handling()

@@ -262,6 +262,7 @@ class TwitchIntegration(Integration):
 
     queue_cooldown = models.FloatField(default=60)
     queue_cooldown_subscriber = models.FloatField(default=15)
+    queue_count = models.PositiveIntegerField(default=0)
 
     add_to_queue = models.BooleanField(default=False)
     add_to_playlist = models.BooleanField(default=True)
@@ -279,6 +280,8 @@ class TwitchIntegrationUser(models.Model):
     time_created = models.DateTimeField(default=timezone.now)
     time_cooldown = models.DateTimeField(null=True, blank=True, default=None)
     manual_cooldown = models.BooleanField(default=False)
+
+    queue_count = models.PositiveIntegerField(default=0)
 
 
 class DiscordIntegration(Integration):

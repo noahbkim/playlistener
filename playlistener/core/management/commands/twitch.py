@@ -8,11 +8,11 @@ from common.spotify import find_first_spotify_track_link, find_first_spotify_pla
 from common.errors import UsageError, InternalError
 
 import requests
-from twitchio.ext.commands import command, Bot, Context, Command, CommandNotFound
+from twitchio.ext.commands import command, cooldown, Bot, Context, Command, CommandNotFound, CommandOnCooldown
 from twitchio.ext.routines import routine, Routine
 from math import ceil
 from dataclasses import dataclass
-from typing import List, Callable, Coroutine, Iterable, Optional, Any, Dict, Set
+from typing import List, Callable, Coroutine, Iterable, Optional, Any, Dict
 
 
 @dataclass
@@ -43,12 +43,16 @@ class TwitchAuthorization:
             "client_id": settings.TWITCH_CLIENT_ID,
             "client_secret": settings.TWITCH_CLIENT_SECRET,
             "grant_type": "refresh_token",
-            "refresh_token": self.refresh_token}).json()
+            "refresh_token": self.refresh_token})
 
-        self.access_token = response["access_token"]
-        self.refresh_token = response["refresh_token"]
-        self.scope = response["scope"]
-        self.token_type = response["token_type"]
+        if response.status_code != 200:
+            raise InternalError("failed to authorize with Twitch")
+
+        data = response.json()
+        self.access_token = data["access_token"]
+        self.refresh_token = data["refresh_token"]
+        self.scope = data["scope"]
+        self.token_type = data["token_type"]
 
 
 def describe_queue_action(queued: bool, added: bool) -> str:
@@ -282,10 +286,18 @@ class TwitchBot(Bot):
 
         print(f"Token expired!")
 
+        try:
+            self.authorization.refresh()
+        except InternalError as error:
+            print(f"Failed to reauthorize: {error}")
+
     async def event_command_error(self, context: Context, error: Exception):
         """Handle command errors."""
 
         if isinstance(error, CommandNotFound):
+            return
+        elif isinstance(error, CommandOnCooldown):
+            await context.reply(f"sorry, this command is on cooldown for {ceil(error.retry_after)} seconds!")
             return
 
         await super().event_command_error(context, error)
@@ -325,6 +337,7 @@ class TwitchBot(Bot):
             if integration.enabled and integration.add_to_queue or integration.add_to_playlist:
                 later(channel.send(f"use ?queue to add Spotify songs to {integration.user.first_name}'s playlist"))
 
+    @cooldown(rate=3, per=30)
     @django_command()
     @error_handling()
     @with_integration(select_related=("user", "user__spotify"))
@@ -340,6 +353,11 @@ class TwitchBot(Bot):
             later(context.send(f"neither the queue nor playlist are enabled right now!"))
             return
 
+        is_subscriber = context.author.is_broadcaster or context.author.is_mod or context.author.is_subscriber
+        if integration.subscribers_only and not is_subscriber:
+            later(context.send("sorry, the queue is in sub mode right now!"))
+            return
+
         if " " not in context.message.content.strip():
             first_name = integration.user.first_name
             destination = describe_queue_destination(integration.add_to_queue, integration.add_to_playlist)
@@ -349,8 +367,6 @@ class TwitchBot(Bot):
         if user.banned:
             later(context.reply("sorry, you're banned from queueing songs!"))
             return
-
-        is_subscriber = context.author.is_broadcaster or context.author.is_mod or context.author.is_subscriber
 
         if user.time_cooldown is not None and user.time_cooldown > timezone.now():
             difference = user.time_cooldown - timezone.now()
@@ -407,6 +423,7 @@ class TwitchBot(Bot):
 
         later(context.reply(get_playlist_url(integration.playlist_id)))
 
+    @cooldown(rate=3, per=60)
     @django_command()
     @error_handling()
     @with_integration(select_related=("user", "user__spotify"))
@@ -430,6 +447,7 @@ class TwitchBot(Bot):
             f"{user.name} has queued {user.queue_count} of {integration.queue_count} total songs"
             f" on {context.channel.name}'s channel"))
 
+    @cooldown(rate=3, per=60)
     @django_command()
     @error_handling()
     @with_integration(select_related=("user", "user__spotify"))
@@ -523,6 +541,7 @@ class TwitchBot(Bot):
 
         parts = context.message.content.split(maxsplit=3)
         handlers = {
+            "submode": self.config_submode,
             "usequeue": self.config_usequeue,
             "useplaylist": self.config_useplaylist,
             "cooldown": self.config_cooldown,
@@ -543,6 +562,23 @@ class TwitchBot(Bot):
             handler(context, later, integration)
         elif len(parts) == 3:
             handler(context, later, integration, value=parts[2])
+
+    @staticmethod
+    def config_submode(context: Context, later: Later, integration: TwitchIntegration, value: str = None):
+        """Toggle playlist adding."""
+
+        if value is None:
+            later(context.reply("sub mode is on" if integration.subscribers_only else "sub mode is off"))
+            return
+
+        subscribers_only = try_bool(value)
+        if subscribers_only is None:
+            later(context.reply("expected value to be on or off"))
+            return
+
+        integration.subscribers_only = subscribers_only
+        integration.save()
+        later(context.reply("sub mode is on" if integration.subscribers_only else "sub mode is off"))
 
     @staticmethod
     def config_cooldown(context: Context, later: Later, integration: TwitchIntegration, value: str = None):

@@ -264,6 +264,8 @@ class TwitchIntegration(Integration):
     queue_cooldown_subscriber = models.FloatField(default=15)
     queue_count = models.PositiveIntegerField(default=0)
 
+    subscribers_only = models.BooleanField(default=False)
+
     add_to_queue = models.BooleanField(default=False)
     add_to_playlist = models.BooleanField(default=True)
     playlist_id = models.CharField(max_length=50, null=True, blank=True)

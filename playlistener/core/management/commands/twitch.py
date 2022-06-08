@@ -12,7 +12,7 @@ from twitchio.ext.commands import command, Bot, Context, Command, CommandNotFoun
 from twitchio.ext.routines import routine, Routine
 from math import ceil
 from dataclasses import dataclass
-from typing import List, Callable, Coroutine, Iterable, Optional, Any
+from typing import List, Callable, Coroutine, Iterable, Optional, Any, Dict, Set
 
 
 @dataclass
@@ -137,6 +137,7 @@ def django_command(
         *args,
         broadcaster_only: bool = False,
         mods_only: bool = False,
+        live_only: bool = True,
         **kwargs) -> Callable[[CommandCallback], Command]:
     """A complicated wrapper to streamline database access."""
 
@@ -147,6 +148,9 @@ def django_command(
 
         async def actual(self, context: Context):
             """Pass in a list for adding coroutines to execute outside."""
+
+            if live_only and not self.live.get(context.channel.name, False):
+                return
 
             if broadcaster_only and not context.author.is_broadcaster:
                 await context.reply("sorry, you don't have permission to use this command!")
@@ -242,22 +246,21 @@ class TwitchBot(Bot):
     """Listens for commands and handles Spotify integration."""
 
     authorization: TwitchAuthorization
+    live: Dict[str, bool]
 
     def __init__(self):
         """Initialize the bot and look for integrations."""
 
-        self.authorization = TwitchAuthorization.request(settings.TWITCH_REFRESH_TOKEN)
-
-        channels = []
+        channels = list()
         for integration in TwitchIntegration.objects.filter(enabled=True):
             channels.append(integration.channel)
 
+        self.authorization = TwitchAuthorization.request(settings.TWITCH_REFRESH_TOKEN)
+        self.live = dict()
         self.notify.start()
+        self.synchronize.start()
 
-        super().__init__(
-            token=self.authorization.access_token,
-            prefix="?",
-            initial_channels=channels)
+        super().__init__(token=self.authorization.access_token, prefix="?", initial_channels=channels)
 
     async def event_ready(self):
         """Print locally for verification."""
@@ -277,11 +280,34 @@ class TwitchBot(Bot):
 
         await super().event_command_error(context, error)
 
+    @routine(minutes=1)
+    async def synchronize(self):
+        """Check if streams are live, join or part channels."""
+
+        users = dict()
+        for channel in self.connected_channels:
+            user = await channel.user()
+            users[user.id] = channel
+            self.live[channel.name] = False
+
+        if len(users) == 0:
+            return
+
+        streams = await self.fetch_streams(user_ids=list(users.keys()))
+        for stream in streams:
+            channel = users[stream.user.id]
+            if not self.live[channel.name]:
+                await channel.send(f"{channel.name}'s queue is now live!")
+            self.live[channel.name] = True
+
     @django_routine(minutes=5)
     def notify(self, later: Later):
         """Notify everyone about queueing."""
 
         for channel in self.connected_channels:
+            if not self.live.get(channel.name, False):
+                continue
+
             integration = TwitchIntegration.objects.filter(channel=channel.name).first()
             if integration is None:
                 continue

@@ -171,6 +171,11 @@ class TwitchIntegrationUpdateView(LoginRequiredMixin, UpdateView):
         kwargs.update(user=self.request.user)
         return kwargs
 
+    def get(self, request, *args, **kwargs):
+        """Redirect if trying to load directly."""
+
+        return redirect("core:index")
+
     def get_success_url(self):
         """Go back to index."""
 

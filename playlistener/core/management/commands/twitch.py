@@ -8,10 +8,11 @@ from common.spotify import find_first_spotify_track_link, find_first_spotify_pla
 from common.errors import UsageError, InternalError
 
 import requests
-from twitchio.ext.commands import command, Bot, Context, Command
+from twitchio.ext.commands import command, Bot, Context, Command, CommandNotFound
 from twitchio.ext.routines import routine, Routine
+from math import ceil
 from dataclasses import dataclass
-from typing import List, Callable, Coroutine, Iterable, Optional
+from typing import List, Callable, Coroutine, Iterable, Optional, Any
 
 
 @dataclass
@@ -107,8 +108,8 @@ def try_bool(value: str) -> Optional[bool]:
 
 
 Later = Callable[[Coroutine], None]
-CommandCallback = Callable[[Context, Later], None]
-RoutineCallback = Callable[[Later], None]
+CommandCallback = Callable[[Any, Context, Later], None]
+RoutineCallback = Callable[[Any, Later], None]
 
 
 def django_routine(*args, **kwargs) -> Callable[[RoutineCallback], Routine]:
@@ -119,11 +120,11 @@ def django_routine(*args, **kwargs) -> Callable[[RoutineCallback], Routine]:
 
         asynchronous = sync_to_async(synchronous)
 
-        async def actual():
+        async def actual(self):
             """Pass in a list for adding coroutines."""
 
             coroutines = []
-            await asynchronous(coroutines.append)
+            await asynchronous(self, coroutines.append)
             for coroutine in coroutines:
                 await coroutine
 
@@ -144,7 +145,7 @@ def django_command(
 
         asynchronous = sync_to_async(synchronous)
 
-        async def actual(context: Context):
+        async def actual(self, context: Context):
             """Pass in a list for adding coroutines to execute outside."""
 
             if broadcaster_only and not context.author.is_broadcaster:
@@ -156,11 +157,11 @@ def django_command(
                 return
 
             coroutines = []
-            await asynchronous(context, coroutines.append)
+            await asynchronous(self, context, coroutines.append)
             for coroutine in coroutines:
                 await coroutine
 
-        return command(*args, **kwargs)(actual)
+        return command(*args, name=kwargs.get("name", synchronous.__name__), **kwargs)(actual)
 
     return decorator
 
@@ -171,45 +172,47 @@ def error_handling() -> Callable[[CommandCallback], CommandCallback]:
     def decorator(callback: CommandCallback) -> CommandCallback:
         """Decorates a callback."""
 
-        def actual(context: Context, later: Later):
+        def actual(self, context: Context, later: Later):
             """Handle Spotify exceptions."""
 
             try:
-                callback(context, later)
+                callback(self, context, later)
             except UsageError as error:
                 later(context.reply(str(error)))
             except InternalError as error:
                 print(f"{error}: {error.details}")
                 later(context.send(f"error: {error}"))
 
+        actual.__name__ = callback.__name__
         return actual
 
     return decorator
 
 
-IntegrationCallback = Callable[[Context, Later, TwitchIntegration], None]
+IntegrationCallback = Callable[[Any, Context, Later, TwitchIntegration], None]
 
 
-def with_integration(select_related: Iterable[str] = None) -> Callable[[IntegrationCallback], CommandCallback]:
+def with_integration(select_related: Iterable[str] = ()) -> Callable[[IntegrationCallback], CommandCallback]:
     """Look up the corresponding Twitch integration, fail silently."""
 
     def decorator(callback: IntegrationCallback) -> CommandCallback:
         """Wrap the integration lookup."""
 
-        def actual(context: Context, later: Later):
+        def actual(self, context: Context, later: Later):
             """Only invoke if integration exists."""
 
             integration = TwitchIntegration.objects.filter(
                 channel=context.channel.name).select_related(*select_related).first()
             if integration is not None:
-                callback(context, later, integration)
+                callback(self, context, later, integration)
 
+        actual.__name__ = callback.__name__
         return actual
 
     return decorator
 
 
-IntegrationUserCallback = Callable[[Context, Later, TwitchIntegration, TwitchIntegrationUser], None]
+IntegrationUserCallback = Callable[[Any, Context, Later, TwitchIntegration, TwitchIntegrationUser], None]
 
 
 def with_user() -> Callable[[IntegrationUserCallback], IntegrationCallback]:
@@ -218,7 +221,7 @@ def with_user() -> Callable[[IntegrationUserCallback], IntegrationCallback]:
     def decorator(callback: IntegrationUserCallback) -> IntegrationCallback:
         """Wrap the user access."""
 
-        def actual(context: Context, later: Later, integration: TwitchIntegration):
+        def actual(self, context: Context, later: Later, integration: TwitchIntegration):
             """Save the user if created."""
 
             user, created = TwitchIntegrationUser.objects.get_or_create(
@@ -227,8 +230,9 @@ def with_user() -> Callable[[IntegrationUserCallback], IntegrationCallback]:
             if created:
                 user.save()
 
-            callback(context, later, integration, user)
+            callback(self, context, later, integration, user)
 
+        actual.__name__ = callback.__name__
         return actual
 
     return decorator
@@ -265,6 +269,14 @@ class TwitchBot(Bot):
 
         print(f"Token expired!")
 
+    async def event_command_error(self, context: Context, error: Exception):
+        """Handle command errors."""
+
+        if isinstance(error, CommandNotFound):
+            return
+
+        await super().event_command_error(context, error)
+
     @django_routine(minutes=5)
     def notify(self, later: Later):
         """Notify everyone about queueing."""
@@ -279,7 +291,7 @@ class TwitchBot(Bot):
 
     @django_command()
     @error_handling()
-    @with_integration(select_related=("user", "user_spotify"))
+    @with_integration(select_related=("user", "user__spotify"))
     @with_user()
     def queue(self, context: Context, later: Later, integration: TwitchIntegration, user: TwitchIntegrationUser):
         """Add a song to the queue or playlist."""
@@ -300,11 +312,11 @@ class TwitchBot(Bot):
 
         if user.time_cooldown is not None and user.time_cooldown > timezone.now():
             difference = user.time_cooldown - timezone.now()
-            message = f"sorry, you have to wait {round(difference.seconds)} seconds to queue again!"
+            message = f"sorry, you have to wait {ceil(difference.seconds)} seconds to queue again!"
 
             is_tiered = integration.queue_cooldown_subscriber < integration.queue_cooldown
             if not user.manual_cooldown and not is_subscriber and is_tiered:
-                message += f" subscribe to only wait {round(integration.queue_cooldown_subscriber)} seconds per queue."
+                message += f" subscribe to only wait {ceil(integration.queue_cooldown_subscriber)} seconds per queue."
 
             later(context.reply(message))
             return
@@ -335,6 +347,7 @@ class TwitchBot(Bot):
         if added_to_playlist or added_to_queue:
             later(context.send(f"{describe_queue(added_to_queue, added_to_playlist)} {describe_track(track_info)}"))
             integration.queue_count += 1
+            user.queue_count += 1
             integration.save()
 
         else:
@@ -342,7 +355,6 @@ class TwitchBot(Bot):
 
         queue_cooldown = integration.queue_cooldown_subscriber if is_subscriber else integration.queue_cooldown
         user.time_cooldown = timezone.now() + timezone.timedelta(seconds=queue_cooldown)
-        user.queue_count += 1
         user.save()
 
     @django_command()
@@ -391,7 +403,12 @@ class TwitchBot(Bot):
             later(context.reply(f"{integration.user.first_name} isn't listening to anything on Spotify!"))
             return
 
-        return [", ".join(describe_track(track, include_url=True) for track in recent_tracks["items"])]
+        names = []
+        for item in recent_tracks["items"]:
+            if "track" in item:
+                names.append(describe_track(item["track"], include_url=True))
+
+        later(context.reply(", ".join(names)))
 
     @django_command(mods_only=True)
     @with_integration()
@@ -442,7 +459,7 @@ class TwitchBot(Bot):
             if user.time_cooldown is not None and user.time_cooldown > timezone.now():
                 difference = user.time_cooldown - timezone.now()
                 manual = " manual" if user.manual_cooldown else ""
-                later(context.reply(f"{name} has a{manual} cooldown of {round(difference)} seconds"))
+                later(context.reply(f"{name} has a{manual} cooldown for {ceil(difference.seconds)} more seconds"))
             else:
                 later(context.reply(f"{name} has no cooldown"))
 
@@ -454,8 +471,11 @@ class TwitchBot(Bot):
 
             if queue_cooldown <= 0:
                 user.time_cooldown = None
+                later(context.reply(f"{name}'s cooldown has been cleared"))
             else:
                 user.time_cooldown = timezone.now() + timezone.timedelta(seconds=queue_cooldown)
+                later(context.reply(f"{name} is on a {ceil(queue_cooldown)} second cooldown"))
+
             user.save()
 
     @django_command(mods_only=True)
@@ -491,7 +511,7 @@ class TwitchBot(Bot):
         """Request or configure cooldown."""
 
         if value is None:
-            later(context.reply(f"queue cooldown is {round(integration.queue_cooldown)} seconds"))
+            later(context.reply(f"queue cooldown is {integration.queue_cooldown} seconds"))
             return
 
         queue_cooldown = try_float(value)
@@ -508,7 +528,7 @@ class TwitchBot(Bot):
         """Request or configure subscriber cooldown."""
 
         if value is None:
-            later(context.reply(f"subscriber queue cooldown is {round(integration.queue_cooldown_subscriber)} seconds"))
+            later(context.reply(f"subscriber queue cooldown is {integration.queue_cooldown_subscriber} seconds"))
             return
 
         subscriber_queue_cooldown = try_float(value)
@@ -539,20 +559,20 @@ class TwitchBot(Bot):
 
     @staticmethod
     def config_useplaylist(context: Context, later: Later, integration: TwitchIntegration, value: str = None):
-        """Toggle queueing."""
+        """Toggle playlist adding."""
 
         if value is None:
-            later(context.reply("add to playlist is on" if integration.add_to_queue else "add to playlist is off"))
+            later(context.reply("add to playlist is on" if integration.add_to_playlist else "add to playlist is off"))
             return
 
-        add_to_queue = try_bool(value)
-        if add_to_queue is None:
+        add_to_playlist = try_bool(value)
+        if add_to_playlist is None:
             later(context.reply("expected value to be on or off"))
             return
 
-        integration.add_to_queue = add_to_queue
+        integration.add_to_playlist = add_to_playlist
         integration.save()
-        later(context.reply("add to playlist is on" if integration.add_to_queue else "add to playlist is off"))
+        later(context.reply("add to playlist is on" if integration.add_to_playlist else "add to playlist is off"))
 
     @staticmethod
     def config_playlist(context: Context, later: Later, integration: TwitchIntegration, value: str = None):

@@ -149,7 +149,7 @@ class SpotifyAuthorization(models.Model):
             f"https://api.spotify.com/v1/tracks/{track_id}",
             headers=self.make_headers()))
 
-        if response.status_code == 404:
+        if response.status_code == 400:
             raise UsageError("sorry, this track doesn't seem to exist!")
         elif response.status_code != 200:
             raise InternalError(

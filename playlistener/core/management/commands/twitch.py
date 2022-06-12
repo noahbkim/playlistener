@@ -323,12 +323,14 @@ class TwitchBot(Bot):
                 await channel.send(f"{channel.name}'s queue is now live!")
             self.live[channel.name] = True
 
+        # Need negative condition
+
     @django_routine(minutes=5)
     def notify(self, later: Later):
         """Notify everyone about queueing."""
 
         for channel in self.connected_channels:
-            if not self.live.get(channel.name, False):
+            if not self.live.get(channel.name, True):
                 continue
 
             integration = TwitchIntegration.objects.filter(channel=channel.name).first()

@@ -163,7 +163,7 @@ def django_command(
         async def actual(self, context: Context):
             """Pass in a list for adding coroutines to execute outside."""
 
-            if live_only and not self.live.get(context.channel.name, False):
+            if live_only and not self.live.get(context.channel.name, True):
                 return
 
             if broadcaster_only and not context.author.is_broadcaster:

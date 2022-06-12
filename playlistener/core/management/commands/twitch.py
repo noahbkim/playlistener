@@ -321,6 +321,7 @@ class TwitchBot(Bot):
             if not self.live[channel.name]:
                 await channel.send(f"{channel.name}'s queue is now live!")
             self.live[channel.name] = True
+            print(f"{channel.name} is live")
 
     @django_routine(minutes=5)
     def notify(self, later: Later):

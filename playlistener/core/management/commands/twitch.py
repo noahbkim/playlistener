@@ -310,7 +310,8 @@ class TwitchBot(Bot):
         for channel in self.connected_channels:
             user = await channel.user()
             users[user.id] = channel
-            self.live[channel.name] = False
+            if channel.name not in self.live:
+                self.live[channel.name] = False
 
         if len(users) == 0:
             return
@@ -321,7 +322,6 @@ class TwitchBot(Bot):
             if not self.live[channel.name]:
                 await channel.send(f"{channel.name}'s queue is now live!")
             self.live[channel.name] = True
-            print(f"{channel.name} is live")
 
     @django_routine(minutes=5)
     def notify(self, later: Later):

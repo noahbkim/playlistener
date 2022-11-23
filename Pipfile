@@ -11,6 +11,8 @@ django = "*"
 asgiref = "*"
 django-sass-processor = "*"
 libsass = "*"
+gunicorn = "*"
+django-compressor = "*"
 
 [dev-packages]
 

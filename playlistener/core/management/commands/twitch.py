@@ -268,6 +268,7 @@ class TwitchBot(Bot):
         channels = list()
         for integration in TwitchIntegration.objects.filter(enabled=True):
             channels.append(integration.channel)
+        print(", ".join(channels))
 
         self.authorization = TwitchAuthorization.request(settings.TWITCH_REFRESH_TOKEN)
         self.live = dict()
@@ -325,7 +326,7 @@ class TwitchBot(Bot):
 
         # Need negative condition
 
-    @django_routine(minutes=5)
+    @django_routine(minutes=15)
     def notify(self, later: Later):
         """Notify everyone about queueing."""
 

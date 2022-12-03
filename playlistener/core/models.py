@@ -5,7 +5,6 @@ from django.conf import settings
 
 import requests
 import base64
-import enum
 from typing import Callable, Iterable, Optional
 
 from common.errors import UsageError, InternalError
@@ -229,10 +228,13 @@ class SpotifyAuthorization(models.Model):
             f"https://api.spotify.com/v1/me/player/queue?uri={uri}",
             headers=self.make_headers()))
 
-        if response.status_code == 404 and response.headers.get("Content-Type") == "application/json":
-            if error := response.json().get("error"):
-                if error.get("reason") == "NO_ACTIVE_DEVICE":
-                    raise UsageError(f"{self.user.first_name} isn't listening to Spotify right now!")
+        if response.status_code == 404:
+            if response.headers.get("Content-Type") == "application/json":
+                if error := response.json().get("error"):
+                    if error.get("reason") == "NO_ACTIVE_DEVICE":
+                        raise UsageError(f"{self.user.first_name} isn't listening to Spotify right now!")
+            else:
+                print("got 404 with Content-Type", response.headers.get("Content-Type"))
 
         if response.status_code != 204:
             raise InternalError(

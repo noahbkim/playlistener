@@ -1,3 +1,4 @@
+import twitchio.errors
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.utils import timezone
@@ -317,7 +318,12 @@ class TwitchBot(Bot):
         if len(users) == 0:
             return
 
-        streams = await self.fetch_streams(user_ids=list(users.keys()))
+        try:
+            streams = await self.fetch_streams(user_ids=list(users.keys()))
+        except twitchio.errors.Unauthorized:
+            print("Failed to fetch streams")
+            return
+
         for stream in streams:
             channel = users[stream.user.id]
             if not self.live[channel.name]:
@@ -338,7 +344,7 @@ class TwitchBot(Bot):
             if integration is None:
                 continue
 
-            if integration.enabled and integration.add_to_queue or integration.add_to_playlist:
+            if integration.enabled and (integration.add_to_queue or integration.add_to_playlist):
                 later(channel.send(f"use ?queue to add Spotify songs to {integration.user.first_name}'s playlist"))
 
     @cooldown(rate=3, per=30)

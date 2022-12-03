@@ -12,7 +12,7 @@
   {% for field in form %}
   {% if field.errors %}
   <li>
-    Errors in {{ field.name }}!
+    Errors in {{ field.name }}:
     {{ field.errors }}
   </li>
   {% endif %}
@@ -20,7 +20,7 @@
 </ul>
 {% endif %}
 <div class="form-group split">
-  <div style="flex: 2;">
+  <div style="flex: 1;">
     <label for="twitch_login">Login</label>
     <input type="text" id="twitch_login" readonly="readonly" value="{{ form.instance.twitch_login }}">
   </div>
@@ -28,44 +28,65 @@
     <label for="twitch_id">Id</label>
     <input type="text" id="twitch_id" readonly="readonly" value="{{ form.instance.twitch_id }}">
   </div>
-  <div>
-    <label for="enabled">Enabled</label>
+</div>
+<div class="form-group split">
+  <div style="flex: 1;">
+    <label for="enabled">Queue enabled</label>
     <div class="checkbox">
       <input type="checkbox" name="enabled" id="enabled" {% if form.enabled.value %}checked{% endif %} />
       <div class="check"></div>
     </div>
   </div>
-</div>
-<div class="form-group split even">
-  <div>
+  <div style="flex: 4;">
     <label for="queue-cooldown">Cooldown</label>
     <input type="number" id="queue-cooldown" name="queue_cooldown" value="{{ form.queue_cooldown.value }}">
   </div>
-  <div>
+</div>
+{#<div class="form-group split">#}
+{#  <div style="flex: 1;">#}
+{#    <label for="followers-only">Must follow</label>#}
+{#    <div class="checkbox">#}
+{#      <input type="checkbox" name="followers_only" id="followers-only" {% if form.followers_only.value %}checked{% endif %} />#}
+{#      <div class="check"></div>#}
+{#    </div>#}
+{#  </div>#}
+{#  <div style="flex: 4;">#}
+{#    <label for="queue-cooldown-subscriber">Follower cooldown</label>#}
+{#    <input type="number" id="queue-cooldown-subscriber" name="queue_cooldown_follower" value="{{ form.queue_cooldown_follower.value }}">#}
+{#  </div>#}
+{#</div>#}
+<div class="form-group split">
+  <div style="flex: 1;">
+    <label for="subscribers-only">Submode</label>
+    <div class="checkbox">
+      <input type="checkbox" name="subscribers_only" id="subscribers-only" {% if form.subscribers_only.value %}checked{% endif %} />
+      <div class="check"></div>
+    </div>
+  </div>
+  <div style="flex: 4;">
     <label for="queue-cooldown-subscriber">Subscriber cooldown</label>
     <input type="number" id="queue-cooldown-subscriber" name="queue_cooldown_subscriber" value="{{ form.queue_cooldown_subscriber.value }}">
   </div>
 </div>
 <div class="form-group split">
-  <div>
+  <div style="flex: 1;">
     <label for="add-to-queue">Add to queue</label>
     <div class="checkbox">
       <input type="checkbox" name="add_to_queue" id="add-to-queue" {% if form.add_to_queue.value %}checked{% endif %} />
       <div class="check"></div>
     </div>
   </div>
-  <div>
+  <div style="flex: 1;">
     <label for="add-to-playlist">Add to playlist</label>
     <div class="checkbox">
       <input type="checkbox" name="add_to_playlist" id="add-to-playlist" {% if form.add_to_playlist.value %}checked{% endif %} />
       <div class="check"></div>
     </div>
   </div>
-  <div style="flex: 1;">
+  <div style="flex: 3;">
     <label for="playlist-id">
       <span>Playlist</span>
-      <a class="playlist-link float-right" target="_blank" href="https://open.spotify.com/playlist/{{ form.playlist_id.value }}">https://open.spotify.com/playlist/</a>
-    </label>
+      <a class="playlist-link float-right" target="_blank" href="https://open.spotify.com/playlist/{{ form.playlist_id.value }}">https://open.spotify.com/playlist/</a>    </label>
     <input type="text" id="playlist-id" class="playlist-id" name="playlist_id" value="{{ form.playlist_id.value|default_if_none:"" }}">
   </div>
 </div>

@@ -265,9 +265,11 @@ class TwitchIntegration(Integration):
     twitch_login = models.CharField(max_length=100, unique=True)
 
     queue_cooldown = models.FloatField(default=60)
+    queue_cooldown_follower = models.FloatField(default=60)
     queue_cooldown_subscriber = models.FloatField(default=15)
     queue_count = models.PositiveIntegerField(default=0)
 
+    followers_only = models.BooleanField(default=True)
     subscribers_only = models.BooleanField(default=False)
 
     add_to_queue = models.BooleanField(default=False)

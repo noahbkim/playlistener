@@ -31,10 +31,13 @@ class TwitchIntegrationForm(forms.ModelForm):
         playlist_id = self.cleaned_data["playlist_id"]
 
         try:
-            self.instance.user.spotify.get_playlist(playlist_id)
+            playlist_data = self.instance.user.spotify.get_playlist(playlist_id)
+            user_data = self.instance.user.spotify.get_me()
+            if playlist_data["owner"]["id"] != user_data["id"]:
+                raise forms.ValidationError("Spotify playlist is not owned by authorized user!")
         except UsageError:
             raise forms.ValidationError("Playlist does not exist!")
-        except InternalError:
+        except (InternalError, KeyError):
             raise forms.ValidationError("Failed to verify playlist, please check Spotify authorization!")
 
         return playlist_id
@@ -55,7 +58,10 @@ class TwitchIntegrationForm(forms.ModelForm):
         fields = (
             "enabled",
             "queue_cooldown",
+            # "queue_cooldown_follower",
             "queue_cooldown_subscriber",
+            # "followers_only",
+            "subscribers_only",
             "add_to_queue",
             "add_to_playlist",
             "playlist_id",)

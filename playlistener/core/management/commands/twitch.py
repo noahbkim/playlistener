@@ -1,4 +1,4 @@
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 from django.conf import settings
 from django.utils import timezone
 from asgiref.sync import sync_to_async
@@ -11,9 +11,17 @@ import requests
 from twitchio import Channel
 from twitchio.ext.commands import command, cooldown, Bot, Context, Command, CommandNotFound, CommandOnCooldown
 from twitchio.ext.routines import routine, Routine
+
+import logging
 from math import ceil
 from dataclasses import dataclass
 from typing import List, Callable, Coroutine, Iterable, Optional, Any, Dict, Set
+
+
+logging.basicConfig(
+    format="%(asctime)s %(levelname)s: %(message)s",
+    datefmt="%m/%d/%y %I:%M:%S %p")
+logger = logging.getLogger("twitch")
 
 
 @dataclass
@@ -29,16 +37,14 @@ class TwitchAuthorization:
     def request(cls, refresh_token: str) -> "TwitchAuthorization":
         """Set refresh token and refresh."""
 
-        self = TwitchAuthorization(
-            access_token="",
-            refresh_token=refresh_token,
-            scope=[],
-            token_type="")
+        self = TwitchAuthorization(access_token="", refresh_token=refresh_token, scope=[], token_type="")
         self.refresh()
         return self
 
     def refresh(self):
         """Refresh the authorization."""
+
+        logger.debug("refreshing Twitch authorization")
 
         response = requests.post("https://id.twitch.tv/oauth2/token", data={
             "client_id": settings.TWITCH_CLIENT_ID,
@@ -47,6 +53,10 @@ class TwitchAuthorization:
             "refresh_token": self.refresh_token})
 
         if response.status_code != 200:
+            logger.error(
+                "failed to refresh Twitch authorization, received status %d: %s",
+                response.status_code,
+                response.content.decode(errors="replace"))
             raise InternalError("failed to authorize with Twitch")
 
         data = response.json()
@@ -195,7 +205,7 @@ def error_handling() -> Callable[[CommandCallback], CommandCallback]:
             except UsageError as error:
                 later(context.reply(str(error)))
             except InternalError as error:
-                print(f"{error}: {error.details}")
+                logging.error("caught error in %s: ", callback.__name__, exc_info=error)
                 later(context.send(f"error: {error}"))
 
         actual.__name__ = callback.__name__
@@ -255,9 +265,11 @@ def with_user() -> Callable[[IntegrationUserCallback], IntegrationCallback]:
 
 @sync_to_async
 def get_twitch_integrations() -> Dict[str, TwitchIntegration]:
+    """Get all Twitch integrations from Django asynchronously."""
+
     return {
         integration.twitch_login: integration
-        for integration in TwitchIntegration.objects.filter(enabled=True).all()}
+        for integration in TwitchIntegration.objects.all()}
 
 
 class TwitchBot(Bot):
@@ -277,19 +289,15 @@ class TwitchBot(Bot):
     async def event_ready(self):
         """Print locally for verification."""
 
-        print(f"Logged in as {self.nick}")
+        logger.info("logged in as %s", self.nick)
         self.synchronize.start()
         self.notify.start()
 
     async def event_token_expired(self):
         """Print locally."""
 
-        print(f"Token expired!")
-
-        try:
-            self.authorization.refresh()
-        except InternalError as error:
-            print(f"Failed to reauthorize: {error}")
+        logger.info(f"token expired!")
+        self.authorization.refresh()
 
     async def event_command_error(self, context: Context, error: Exception):
         """Handle command errors."""
@@ -311,7 +319,7 @@ class TwitchBot(Bot):
         """Remove from joined set."""
 
         self.joined.remove(channel)
-        print(f"Failed to join channel {channel}")
+        logger.error("failed to join channel %s", channel)
 
     @routine(seconds=15)
     async def synchronize(self):
@@ -329,16 +337,20 @@ class TwitchBot(Bot):
 
         part = []
         for integration in integrations.values():
-            part.append(integration.twitch_login)
-            self.joined.remove(integration.twitch_login)
+            if integration.twitch_login in self.joined:
+                part.append(integration.twitch_login)
+                self.joined.remove(integration.twitch_login)
 
         if join:
-            print("joining", ", ".join(join))
+            logger.info("joining", ", ".join(join))
             await self.join_channels(join)
 
         if part:
-            print("leaving", ", ".join(part))
+            logger.info("leaving", ", ".join(part))
             await self.part_channels(part)
+
+        if join or part:
+            logger.debug("currently present in %d channels: %s", len(self.joined), ", ".join(self.joined))
 
     @django_routine(minutes=15)
     def notify(self, later: Later):
@@ -368,8 +380,8 @@ class TwitchBot(Bot):
             later(context.send(f"neither the queue nor playlist are enabled right now!"))
             return
 
-        is_subscriber = context.author.is_broadcaster or context.author.is_mod or context.author.is_subscriber
-        if integration.subscribers_only and not is_subscriber:
+        is_admin = context.author.is_broadcaster or context.author.is_mod
+        if not is_admin and integration.subscribers_only and not context.author.is_subscriber:
             later(context.send("sorry, the queue is in sub mode right now!"))
             return
 
@@ -388,7 +400,7 @@ class TwitchBot(Bot):
             message = f"sorry, you have to wait {ceil(difference.seconds)} seconds to queue again!"
 
             is_tiered = integration.queue_cooldown_subscriber < integration.queue_cooldown
-            if not user.manual_cooldown and not is_subscriber and is_tiered:
+            if not user.manual_cooldown and not context.author.is_subscriber and not is_admin and is_tiered:
                 message += f" subscribe to only wait {ceil(integration.queue_cooldown_subscriber)} seconds per queue."
 
             later(context.reply(message))
@@ -426,7 +438,7 @@ class TwitchBot(Bot):
         user.time_cooldown = timezone.now() + timezone.timedelta(seconds=queue_cooldown)
         user.save()
 
-    @django_command()
+    @cooldown(rate=3, per=60)
     @error_handling()
     @with_integration()
     def playlist(self, context: Context, later: Later, integration: TwitchIntegration):
@@ -556,10 +568,12 @@ class TwitchBot(Bot):
 
         parts = context.message.content.split(maxsplit=3)
         handlers = {
+            # "followmode": self.config_followmode,
             "submode": self.config_submode,
             "usequeue": self.config_usequeue,
             "useplaylist": self.config_useplaylist,
             "cooldown": self.config_cooldown,
+            # "followcooldown": self.config_followcooldown,
             "subcooldown": self.config_subcooldown,
             "playlist": self.config_playlist}
 
@@ -579,55 +593,79 @@ class TwitchBot(Bot):
             handler(context, later, integration, value=parts[2])
 
     @staticmethod
+    def config_followmode(context: Context, later: Later, integration: TwitchIntegration, value: str = None):
+        """Users must follow to use the queue."""
+
+        if value is not None:
+            followers_only = try_bool(value)
+            if followers_only is None:
+                later(context.reply("expected value to be on or off"))
+                return
+
+            integration.followers_only = followers_only
+            integration.save()
+
+        later(context.reply("followers only is on" if integration.followers_only else "followers only is off"))
+
+    @staticmethod
     def config_submode(context: Context, later: Later, integration: TwitchIntegration, value: str = None):
         """Toggle playlist adding."""
 
-        if value is None:
-            later(context.reply("sub mode is on" if integration.subscribers_only else "sub mode is off"))
-            return
+        if value is not None:
+            subscribers_only = try_bool(value)
+            if subscribers_only is None:
+                later(context.reply("expected value to be on or off"))
+                return
 
-        subscribers_only = try_bool(value)
-        if subscribers_only is None:
-            later(context.reply("expected value to be on or off"))
-            return
+            integration.subscribers_only = subscribers_only
+            integration.save()
 
-        integration.subscribers_only = subscribers_only
-        integration.save()
         later(context.reply("sub mode is on" if integration.subscribers_only else "sub mode is off"))
 
     @staticmethod
     def config_cooldown(context: Context, later: Later, integration: TwitchIntegration, value: str = None):
         """Request or configure cooldown."""
 
-        if value is None:
-            later(context.reply(f"queue cooldown is {integration.queue_cooldown} seconds"))
-            return
+        if value is not None:
+            queue_cooldown = try_float(value)
+            if queue_cooldown is None:
+                later(context.reply(f"expected numeric value for cooldown!"))
+                return
 
-        queue_cooldown = try_float(value)
-        if queue_cooldown is None:
-            later(context.reply(f"expected numeric value for cooldown!"))
-            return
+            integration.queue_cooldown = queue_cooldown
+            integration.save()
 
-        integration.queue_cooldown = queue_cooldown
-        integration.save()
-        later(context.reply(f"set queue cooldown to {queue_cooldown} seconds"))
+        later(context.reply(f"queue cooldown is {integration.queue_cooldown} seconds"))
+
+    @staticmethod
+    def config_followcooldown(context: Context, later: Later, integration: TwitchIntegration, value: str = None):
+        """Request or configure follower cooldown."""
+
+        if value is not None:
+            follower_queue_cooldown = try_float(value)
+            if follower_queue_cooldown is None:
+                later(context.reply(f"expected numeric value for follower queue cooldown!"))
+                return
+
+            integration.queue_cooldown_follower = follower_queue_cooldown
+            integration.save()
+
+        later(context.reply(f"follower queue cooldown is {integration.queue_cooldown_follower} seconds"))
 
     @staticmethod
     def config_subcooldown(context: Context, later: Later, integration: TwitchIntegration, value: str = None):
         """Request or configure subscriber cooldown."""
 
-        if value is None:
-            later(context.reply(f"subscriber queue cooldown is {integration.queue_cooldown_subscriber} seconds"))
-            return
+        if value is not None:
+            subscriber_queue_cooldown = try_float(value)
+            if subscriber_queue_cooldown is None:
+                later(context.reply(f"expected numeric value for subscriber queue cooldown!"))
+                return
 
-        subscriber_queue_cooldown = try_float(value)
-        if subscriber_queue_cooldown is None:
-            later(context.reply(f"expected numeric value for cooldown!"))
-            return
+            integration.queue_cooldown_subscriber = subscriber_queue_cooldown
+            integration.save()
 
-        integration.queue_cooldown_subscriber = subscriber_queue_cooldown
-        integration.save()
-        later(context.reply(f"set subscriber queue cooldown to {subscriber_queue_cooldown} seconds"))
+        later(context.reply(f"subscriber queue cooldown is {integration.queue_cooldown_subscriber} seconds"))
 
     @staticmethod
     def config_usequeue(context: Context, later: Later, integration: TwitchIntegration, value: str = None):
@@ -721,8 +759,16 @@ class TwitchBot(Bot):
 class Command(BaseCommand):
     """Invite a user to setup integrations."""
 
+    def add_arguments(self, parser: CommandParser):
+        """Configuration options."""
+
+        parser.add_argument("--debug", dest="debug", action="store_true", default=False)
+
     def handle(self, *args, **options):
         """Run the Twitch bot."""
+
+        if options["debug"]:
+            logger.setLevel(logging.DEBUG)
 
         bot = TwitchBot()
         bot.run()

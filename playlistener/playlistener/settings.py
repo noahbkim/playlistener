@@ -24,6 +24,7 @@ SECRET_KEY = "django-insecure-d4i9p)3)p68*-8=r16la*91r_uojq4ss!bp5gv1f+h4t+%ug%4
 
 # SECURITY WARNING: don"t run with debug turned on in production!
 DEBUG = True
+LOCAL = True
 
 ALLOWED_HOSTS = ["playlistener.noahb.kim", "localhost"]
 
@@ -142,4 +143,13 @@ LOGIN_REDIRECT_URL = "core:index"
 LOGOUT_REDIRECT_URL = "core:login"
 
 
+# Integrations
+
 from .local import *
+
+if LOCAL:
+    TWITCH_REDIRECT_URI = "http://localhost:8000/oauth/twitch/receive/"
+    SPOTIFY_REDIRECT_URI = "http://localhost:8000/oauth/spotify/receive/"
+else:
+    TWITCH_REDIRECT_URI = "https://playlistener.noahb.kim/oauth/twitch/receive/"
+    SPOTIFY_REDIRECT_URI = "https://playlistener.noahb.kim/oauth/spotify/receive/"

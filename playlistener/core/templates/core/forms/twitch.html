@@ -1,4 +1,10 @@
-{% if form.instance.pk == integration.pk and form.errors %}
+{% if not form.instance %}
+<p>
+  Don't worry, these settings can be changed later!
+  To set the playlist ID, you can paste your Spotify playlist's URL into the text box--the playlist ID will be automatically detected.
+</p>
+{% endif %}
+{% if form.errors %}
 <ul class="errors">
   {% for field in form %}
   {% if field.errors %}
@@ -13,12 +19,12 @@
 <div class="form-group split">
   <div style="flex: 1;">
     <label for="channel">Channel</label>
-    <input type="text" id="channel" name="channel" value="{{ integration.channel }}">
+    <input type="text" id="channel" name="channel" readonly="readonly" value="{{ form.channel }}">
   </div>
   <div>
     <label for="enabled">Enabled</label>
     <div class="checkbox">
-      <input type="checkbox" name="enabled" id="enabled" {% if integration.enabled %}checked{% endif %} />
+      <input type="checkbox" name="enabled" id="enabled" {% if form.enabled.value %}checked{% endif %} />
       <div class="check"></div>
     </div>
   </div>
@@ -26,39 +32,39 @@
 <div class="form-group split even">
   <div>
     <label for="queue-cooldown">Cooldown</label>
-    <input type="number" id="queue-cooldown" name="queue_cooldown" value="{{ integration.queue_cooldown }}">
+    <input type="number" id="queue-cooldown" name="queue_cooldown" value="{{ form.queue_cooldown.value }}">
   </div>
   <div>
     <label for="queue-cooldown-subscriber">Subscriber cooldown</label>
-    <input type="number" id="queue-cooldown-subscriber" name="queue_cooldown_subscriber" value="{{ integration.queue_cooldown_subscriber }}">
+    <input type="number" id="queue-cooldown-subscriber" name="queue_cooldown_subscriber" value="{{ form.queue_cooldown_subscriber.value }}">
   </div>
 </div>
 <div class="form-group split">
   <div>
     <label for="add-to-queue">Add to queue</label>
     <div class="checkbox">
-      <input type="checkbox" name="add_to_queue" id="add-to-queue" {% if integration.add_to_queue %}checked{% endif %} />
+      <input type="checkbox" name="add_to_queue" id="add-to-queue" {% if form.add_to_queue.value %}checked{% endif %} />
       <div class="check"></div>
     </div>
   </div>
   <div>
     <label for="add-to-playlist">Add to playlist</label>
     <div class="checkbox">
-      <input type="checkbox" name="add_to_playlist" id="add-to-playlist" {% if integration.add_to_playlist %}checked{% endif %} />
+      <input type="checkbox" name="add_to_playlist" id="add-to-playlist" {% if form.add_to_playlist.value %}checked{% endif %} />
       <div class="check"></div>
     </div>
   </div>
   <div style="flex: 1;">
     <label for="playlist-id">
       <span>Playlist</span>
-      <a class="playlist-link float-right" target="_blank" href="https://open.spotify.com/playlist/{{ integration.playlist_id }}">https://open.spotify.com/playlist/</a>
+      <a class="playlist-link float-right" target="_blank" href="https://open.spotify.com/playlist/{{ form.playlist_id.value }}">https://open.spotify.com/playlist/</a>
     </label>
-    <input type="text" id="playlist-id" class="playlist-id" name="playlist_id" value="{{ integration.playlist_id }}">
+    <input type="text" id="playlist-id" class="playlist-id" name="playlist_id" value="{{ form.playlist_id.value|default_if_none:"" }}">
   </div>
 </div>
 <div class="form-group buttons">
-  {% if removable %}
-  <a class="button accent" href="{% url "core:twitch_delete" integration.pk %}">Remove</a>
+  {% if form.instance.pk %}
+  <a class="button accent" href="{% url "core:twitch_delete" form.instance.pk %}">Remove</a>
   <button class="primary" type="submit">Update</button>
   {% else %}
   <a class="button accent" href="{% url "core:index" %}">Back</a>

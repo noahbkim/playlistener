@@ -16,4 +16,6 @@ urlpatterns = [
     path("oauth/spotify/", views.view_spotify_oauth, name="oauth_spotify"),
     path("oauth/spotify/receive/", views.view_spotify_oauth_receive, name="oauth_spotify_receive"),
     path("oauth/spotify/update/", views.view_spotify_oauth_update, name="oauth_spotify_update"),
+    path("oauth/twitch/", views.view_twitch_oauth, name="oauth_twitch"),
+    path("oauth/twitch/receive/", views.view_twitch_oauth_receive, name="oauth_twitch_receive"),
 ]

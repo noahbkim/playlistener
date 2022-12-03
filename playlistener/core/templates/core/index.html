@@ -80,24 +80,22 @@
 
         </ul>
       </div>
-      {% for integration in request.user.twitch_integrations.all %}
+      {% for form in twitch_integrations %}
       <div class="window layer2">
         <div class="accent background-color-twitch"></div>
         <div class="actual">
-          <h2 class="header">{{ integration.channel }}</h2>
+          <h2 class="header">{{ form.channel }}</h2>
           <div class="content">
-            <form method="post" action="{% url "core:twitch_update" integration.pk %}">
+            <form method="post" action="{% url "core:twitch_update" form.instance.pk %}">
               {% csrf_token %}
-              {% with True as removable %}
               {% include "core/forms/twitch.html" %}
-              {% endwith %}
             </form>
           </div>
         </div>
       </div>
       {% endfor %}
       <div class="form-group buttons">
-        <a class="button primary" href="{% url "core:twitch" %}">Add Twitch Integration</a>
+        <a class="button primary" href="{% url "core:oauth_twitch" %}?next={% url "core:twitch" %}">Add Twitch Integration</a>
       </div>
     </div>
   </div>

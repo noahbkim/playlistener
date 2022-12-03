@@ -14,7 +14,8 @@ __all__ = (
     "Invitation",
     "SpotifyAuthorization",
     "TwitchIntegration",
-    "TwitchIntegrationUser",)
+    "TwitchIntegrationUser",
+    "DiscordIntegration",)
 
 
 class Invitation(models.Model):

@@ -1,4 +1,5 @@
 from django import forms
+from django.db.models import Q
 
 from common.errors import InternalError, UsageError
 from . import models
@@ -7,16 +8,22 @@ from . import models
 class TwitchIntegrationForm(forms.ModelForm):
     """Form for creating or updating twitch integrations."""
 
-    channel: str
-
-    def __init__(self, user: models.User, channel: str = None, *args, **kwargs):
+    def __init__(
+            self,
+            user: models.User = None,
+            twitch_id: str = None,
+            twitch_login: str = None,
+            *args,
+            **kwargs):
         """Store user for Spotify playlist validation."""
 
         super().__init__(*args, **kwargs)
-        self.user = user
-        if channel is None and self.instance is not None:
-            channel = self.instance.channel
-        self.channel = channel
+        if user is not None:
+            self.instance.user = user
+        if twitch_id is not None:
+            self.instance.twitch_id = twitch_id
+        if twitch_login is not None:
+            self.instance.twitch_login = twitch_login
 
     def clean_playlist_id(self):
         """Validate that the playlist exists."""
@@ -24,13 +31,24 @@ class TwitchIntegrationForm(forms.ModelForm):
         playlist_id = self.cleaned_data["playlist_id"]
 
         try:
-            self.user.spotify.get_playlist(playlist_id)
+            self.instance.user.spotify.get_playlist(playlist_id)
         except UsageError:
             raise forms.ValidationError("Playlist does not exist!")
         except InternalError:
             raise forms.ValidationError("Failed to verify playlist, please check Spotify authorization!")
 
         return playlist_id
+
+    def clean(self) -> dict:
+        """Also validate the twitch_login is unique."""
+
+        if models.TwitchIntegration.objects.filter(
+            ~Q(pk=self.instance.pk) &
+            (Q(twitch_login=self.instance.twitch_login) | Q(twitch_id=self.instance.twitch_id))
+        ).exists():
+            raise forms.ValidationError(f"Twitch account {self.instance.twitch_login} is already in use!")
+
+        return super().clean()
 
     class Meta:
         model = models.TwitchIntegration

@@ -12,7 +12,12 @@ window.addEventListener("load", () => {
       }
       input.value = value;
       const a = input.previousElementSibling.getElementsByClassName("playlist-link")[0];
-      a.href = `https://open.spotify.com/playlist/${value}`;
+
+      if (value.length > 0) {
+        a.href = `https://open.spotify.com/playlist/${value}`;
+      } else {
+        a.removeAttribute("href");
+      }
     });
   }
 });

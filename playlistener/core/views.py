@@ -11,6 +11,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 import random
 import string
 import requests
+from dataclasses import dataclass
 
 from common.errors import InternalError
 from .models import User, Invitation, SpotifyAuthorization, TwitchIntegration
@@ -125,11 +126,7 @@ class IndexView(LoginRequiredMixin, TemplateView):
 
         context["twitch_integrations"] = twitch_integrations = []
         for twitch_integration in self.request.user.twitch_integrations.all():
-            twitch_integrations.append(
-                TwitchIntegrationForm(
-                    user=twitch_integration.user,
-                    channel=twitch_integration.channel,
-                    instance=twitch_integration))
+            twitch_integrations.append(TwitchIntegrationForm(instance=twitch_integration))
 
         return context
 
@@ -207,31 +204,32 @@ class TwitchIntegrationView(LoginRequiredMixin, FormView):
         if "twitch_code" not in self.request.session:
             raise Http404
 
-        # If this cached twitch_login value doesn't correspond to our current
-        # token, we need to retrieve it again from the API
-        twitch_login = None
-        if "twitch_login" in self.request.session:
-            twitch_code, twitch_login = self.request.session["twitch_login"]
-            if twitch_code != self.request.session["twitch_code"]:
-                twitch_login = None
+        # The twitch_user["twitch_code"] should correspond to our current
+        # twitch_code; if it doesn't, we need to refresh.
+        twitch_user = None
+        if "twitch_user" in self.request.session:
+            cache = self.request.session["twitch_user"]
+            if cache["key"] == self.request.session["twitch_code"]:
+                twitch_user = cache["data"]
 
-        if twitch_login is None:
+        if twitch_user is None:
             twitch_code = self.request.session["twitch_code"]
             token_data = get_twitch_token(twitch_code)
-            access_token = token_data["access_token"]
-            user_data = get_twitch_user(access_token)
-            twitch_login = user_data["login"]
-            self.request.session["twitch_login"] = (twitch_code, twitch_login)
+            twitch_user = get_twitch_user(token_data["access_token"])
+            self.request.session["twitch_user"] = dict(
+                key=twitch_code,
+                data=twitch_user,)
 
         kwargs = super().get_form_kwargs()
-        kwargs.update(user=self.request.user, channel=twitch_login)
+        kwargs.update(
+            user=self.request.user,
+            twitch_id=twitch_user["id"],
+            twitch_login=twitch_user["login"],)
         return kwargs
 
     def form_valid(self, form: TwitchIntegrationForm):
         """Save the instance."""
 
-        form.instance.user = self.request.user
-        form.instance.channel = form.channel
         form.save(commit=True)
         return super().form_valid(form)
 
@@ -244,21 +242,9 @@ class TwitchIntegrationView(LoginRequiredMixin, FormView):
 class TwitchIntegrationUpdateView(LoginRequiredMixin, UpdateView):
     """Allow modification and deletion."""
 
-    template_name = "core/index.html"
+    template_name = "core/twitch.html"
     form_class = TwitchIntegrationForm
     queryset = TwitchIntegration.objects
-
-    def get_form_kwargs(self):
-        """Add user to kwargs."""
-
-        kwargs = super().get_form_kwargs()
-        kwargs.update(user=self.request.user)
-        return kwargs
-
-    def get(self, request, *args, **kwargs):
-        """Redirect if trying to load directly."""
-
-        return redirect("core:index")
 
     def get_success_url(self):
         """Go back to index."""

@@ -84,7 +84,7 @@
       <div class="window layer2">
         <div class="accent background-color-twitch"></div>
         <div class="actual">
-          <h2 class="header">{{ form.channel }}</h2>
+          <h2 class="header">Channel {{ form.instance.twitch_login }}</h2>
           <div class="content">
             <form method="post" action="{% url "core:twitch_update" form.instance.pk %}">
               {% csrf_token %}

@@ -1,4 +1,3 @@
-import twitchio.errors
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.utils import timezone
@@ -9,11 +8,12 @@ from common.spotify import find_first_spotify_track_link, find_first_spotify_pla
 from common.errors import UsageError, InternalError
 
 import requests
+from twitchio import Channel
 from twitchio.ext.commands import command, cooldown, Bot, Context, Command, CommandNotFound, CommandOnCooldown
 from twitchio.ext.routines import routine, Routine
 from math import ceil
 from dataclasses import dataclass
-from typing import List, Callable, Coroutine, Iterable, Optional, Any, Dict
+from typing import List, Callable, Coroutine, Iterable, Optional, Any, Dict, Set
 
 
 @dataclass
@@ -152,7 +152,6 @@ def django_command(
         *args,
         broadcaster_only: bool = False,
         mods_only: bool = False,
-        live_only: bool = True,
         **kwargs) -> Callable[[CommandCallback], Command]:
     """A complicated wrapper to streamline database access."""
 
@@ -163,9 +162,6 @@ def django_command(
 
         async def actual(self, context: Context):
             """Pass in a list for adding coroutines to execute outside."""
-
-            if live_only and not self.live.get(context.channel.name, True):
-                return
 
             if broadcaster_only and not context.author.is_broadcaster:
                 await context.reply("sorry, you don't have permission to use this command!")
@@ -221,7 +217,7 @@ def with_integration(select_related: Iterable[str] = ()) -> Callable[[Integratio
             """Only invoke if integration exists."""
 
             integration = TwitchIntegration.objects.filter(
-                channel=context.channel.name).select_related(*select_related).first()
+                twitch_login=context.channel.name).select_related(*select_related).first()
             if integration is not None:
                 callback(self, context, later, integration)
 
@@ -257,31 +253,33 @@ def with_user() -> Callable[[IntegrationUserCallback], IntegrationCallback]:
     return decorator
 
 
+@sync_to_async
+def get_twitch_integrations() -> Dict[str, TwitchIntegration]:
+    return {
+        integration.twitch_login: integration
+        for integration in TwitchIntegration.objects.filter(enabled=True).all()}
+
+
 class TwitchBot(Bot):
     """Listens for commands and handles Spotify integration."""
 
     authorization: TwitchAuthorization
-    live: Dict[str, bool]
+    joined: Set[str]
 
     def __init__(self):
         """Initialize the bot and look for integrations."""
 
-        channels = list()
-        for integration in TwitchIntegration.objects.filter(enabled=True):
-            channels.append(integration.channel)
-        print(", ".join(channels))
-
         self.authorization = TwitchAuthorization.request(settings.TWITCH_REFRESH_TOKEN)
-        self.live = dict()
-        self.notify.start()
-        self.synchronize.start()
+        self.joined = set()
 
-        super().__init__(token=self.authorization.access_token, prefix="?", initial_channels=channels)
+        super().__init__(token=self.authorization.access_token, prefix="?")
 
     async def event_ready(self):
         """Print locally for verification."""
 
         print(f"Logged in as {self.nick}")
+        self.synchronize.start()
+        self.notify.start()
 
     async def event_token_expired(self):
         """Print locally."""
@@ -304,42 +302,49 @@ class TwitchBot(Bot):
 
         await super().event_command_error(context, error)
 
-    @routine(minutes=1)
+    async def event_channel_joined(self, channel: Channel):
+        """Notify the channel!"""
+
+        await channel.send(f"{channel.name}'s queue is active!")
+
+    async def event_channel_join_failure(self, channel: str):
+        """Remove from joined set."""
+
+        self.joined.remove(channel)
+        print(f"Failed to join channel {channel}")
+
+    @routine(seconds=15)
     async def synchronize(self):
         """Check if streams are live, join or part channels."""
 
-        users = dict()
-        for channel in self.connected_channels:
-            user = await channel.user()
-            users[user.id] = channel
-            if channel.name not in self.live:
-                self.live[channel.name] = False
+        integrations = await get_twitch_integrations()
+        streams = await self.fetch_streams(user_logins=integrations.keys())
 
-        if len(users) == 0:
-            return
-
-        try:
-            streams = await self.fetch_streams(user_ids=list(users.keys()))
-        except twitchio.errors.Unauthorized:
-            print("Failed to fetch streams")
-            return
-
+        join = []
         for stream in streams:
-            channel = users[stream.user.id]
-            if not self.live[channel.name]:
-                await channel.send(f"{channel.name}'s queue is now live!")
-            self.live[channel.name] = True
+            integration = integrations.pop(stream.user.name)
+            if integration.twitch_login not in self.joined:
+                join.append(integration.twitch_login)
+                self.joined.add(integration.twitch_login)
 
-        # Need negative condition
+        part = []
+        for integration in integrations.values():
+            part.append(integration.twitch_login)
+            self.joined.remove(integration.twitch_login)
+
+        if join:
+            print("joining", ", ".join(join))
+            await self.join_channels(join)
+
+        if part:
+            print("leaving", ", ".join(part))
+            await self.part_channels(part)
 
     @django_routine(minutes=15)
     def notify(self, later: Later):
         """Notify everyone about queueing."""
 
         for channel in self.connected_channels:
-            if not self.live.get(channel.name, True):
-                continue
-
             integration = TwitchIntegration.objects.filter(channel=channel.name).first()
             if integration is None:
                 continue

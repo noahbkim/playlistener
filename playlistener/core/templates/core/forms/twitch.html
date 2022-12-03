@@ -6,6 +6,9 @@
 {% endif %}
 {% if form.errors %}
 <ul class="errors">
+  {% for error in form.non_field_errors %}
+  <li>{{ error }}</li>
+  {% endfor %}
   {% for field in form %}
   {% if field.errors %}
   <li>
@@ -17,9 +20,13 @@
 </ul>
 {% endif %}
 <div class="form-group split">
+  <div style="flex: 2;">
+    <label for="twitch_login">Login</label>
+    <input type="text" id="twitch_login" readonly="readonly" value="{{ form.instance.twitch_login }}">
+  </div>
   <div style="flex: 1;">
-    <label for="channel">Channel</label>
-    <input type="text" id="channel" name="channel" readonly="readonly" value="{{ form.channel }}">
+    <label for="twitch_id">Id</label>
+    <input type="text" id="twitch_id" readonly="readonly" value="{{ form.instance.twitch_id }}">
   </div>
   <div>
     <label for="enabled">Enabled</label>

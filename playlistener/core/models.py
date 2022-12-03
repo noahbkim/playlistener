@@ -261,7 +261,8 @@ class TwitchIntegration(Integration):
 
     user = models.ForeignKey(to=User, on_delete=models.CASCADE, related_name="twitch_integrations")
 
-    channel = models.CharField(max_length=100, unique=True)
+    twitch_id = models.CharField(max_length=100, unique=True)
+    twitch_login = models.CharField(max_length=100, unique=True)
 
     queue_cooldown = models.FloatField(default=60)
     queue_cooldown_subscriber = models.FloatField(default=15)

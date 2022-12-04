@@ -281,6 +281,7 @@ class TwitchBot(Bot):
     def __init__(self):
         """Initialize the bot and look for integrations."""
 
+        logger.info("initializing bot")
         self.authorization = TwitchAuthorization.request(settings.TWITCH_REFRESH_TOKEN)
         self.joined = set()
 
@@ -381,7 +382,8 @@ class TwitchBot(Bot):
             return
 
         is_admin = context.author.is_broadcaster or context.author.is_mod
-        if not is_admin and integration.subscribers_only and not context.author.is_subscriber:
+        is_subscriber = is_admin or context.author.is_subscriber
+        if integration.subscribers_only and not is_subscriber:
             later(context.send("sorry, the queue is in sub mode right now!"))
             return
 
@@ -769,6 +771,8 @@ class Command(BaseCommand):
 
         if options["debug"]:
             logger.setLevel(logging.DEBUG)
+        else:
+            logger.setLevel(logging.INFO)
 
         bot = TwitchBot()
         bot.run()

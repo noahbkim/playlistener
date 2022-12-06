@@ -22,3 +22,9 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("core.urls", namespace="core"))
 ]
+
+# Error pages
+# https://docs.djangoproject.com/en/4.1/topics/http/views/#customizing-error-views
+
+handler404 = "core.views.view_404"
+handler500 = "core.views.view_500"

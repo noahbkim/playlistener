@@ -1,4 +1,5 @@
-from django.shortcuts import redirect, reverse, Http404
+from django.shortcuts import render, redirect, Http404
+from django.urls.exceptions import Resolver404
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse
 from django.views.generic import TemplateView, FormView, UpdateView, DeleteView
@@ -7,13 +8,13 @@ from django.db import transaction
 from django.contrib.auth import login, views
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.urls import reverse
 
-import random
-import string
 import requests
-from dataclasses import dataclass
+import logging
 
 from common.errors import InternalError
+from common.oauth import generate_state, get_url, OAuthStartView, OAuthReceiveView
 from .models import User, Invitation, SpotifyAuthorization, TwitchIntegration
 from .forms import TwitchIntegrationForm
 
@@ -24,17 +25,14 @@ __all__ = (
     "RegistrationView",
     "FinishRegistrationView")
 
+
+logger = logging.getLogger(__name__)
+
 SPOTIFY_SCOPE = " ".join((
     "playlist-modify-public",
     "user-read-playback-state",
     "user-modify-playback-state",
     "user-read-recently-played",))
-
-
-def generate_state() -> str:
-    """Generate 16 characters of hexadecimal."""
-
-    return "".join(random.choices(string.hexdigits, k=16))
 
 
 def generate_spotify_authorization_url(state: str, scope: str = "") -> str:
@@ -61,7 +59,7 @@ def generate_twitch_authorization_url(state: str, scope: str = "") -> str:
         f"&state={state}")
 
 
-def get_twitch_token(code: str) -> dict:
+def get_twitch_token(code: str, redirect_uri: str) -> dict:
     """Go through final OAuth flow step to get access token."""
 
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
@@ -70,7 +68,7 @@ def get_twitch_token(code: str) -> dict:
         "client_id": settings.TWITCH_CLIENT_ID,
         "client_secret": settings.TWITCH_CLIENT_SECRET,
         "grant_type": "authorization_code",
-        "redirect_uri": settings.TWITCH_REDIRECT_URI}
+        "redirect_uri": redirect_uri}
 
     response = requests.post(
         "https://id.twitch.tv/oauth2/token",
@@ -214,7 +212,7 @@ class TwitchIntegrationView(LoginRequiredMixin, FormView):
 
         if twitch_user is None:
             twitch_code = self.request.session["twitch_code"]
-            token_data = get_twitch_token(twitch_code)
+            token_data = get_twitch_token(twitch_code, get_url(self.request, "core:oauth_twitch_receive"))
             twitch_user = get_twitch_user(token_data["access_token"])
             self.request.session["twitch_user"] = dict(
                 key=twitch_code,
@@ -264,6 +262,7 @@ class TwitchIntegrationDeleteView(LoginRequiredMixin, DeleteView):
         return reverse("core:index")
 
 
+@login_required
 def view_spotify_oauth(request: HttpRequest) -> HttpResponse:
     """Start OAuth process."""
 
@@ -275,6 +274,7 @@ def view_spotify_oauth(request: HttpRequest) -> HttpResponse:
     return redirect(generate_spotify_authorization_url(state, scope=SPOTIFY_SCOPE))
 
 
+@login_required
 def view_spotify_oauth_receive(request: HttpRequest) -> HttpResponse:
     """Receive OAuth, store to session, redirect."""
 
@@ -299,25 +299,32 @@ def view_spotify_oauth_update(request: HttpRequest) -> HttpResponse:
     return redirect("core:index")
 
 
-def view_twitch_oauth(request: HttpRequest) -> HttpResponse:
-    """Start OAuth process."""
+class TwitchOAuthStartView(LoginRequiredMixin, OAuthStartView):
+    """Start Twitch OAuth for accessing user information."""
 
-    if "next" not in request.GET:
-        raise Http404
+    next_session_name = "twitch_next"
+    state_session_name = "twitch_state"
+    oauth_url = "https://id.twitch.tv/oauth2/authorize"
+    oauth_client_id = settings.TWITCH_CLIENT_ID
+    oauth_scope = ""
+    oauth_receive_view = "core:oauth_twitch_receive"
 
-    state = request.session["twitch_state"] = generate_state()
-    request.session["twitch_next"] = request.GET["next"]
-    return redirect(generate_twitch_authorization_url(state))
+
+class TwitchOAuthReceiveView(LoginRequiredMixin, OAuthReceiveView):
+    """Receive Twitch OAuth and redirect."""
+
+    next_session_name = "twitch_next"
+    state_session_name = "twitch_state"
+    code_session_name = "twitch_code"
 
 
-def view_twitch_oauth_receive(request: HttpRequest) -> HttpResponse:
-    """Receive OAuth, store to session, redirect."""
+def view_404(request: HttpRequest, exception: Resolver404) -> HttpResponse:
+    """Render the 404 template."""
 
-    if "twitch_state" not in request.session:
-        raise Http404
+    return render(request, "core/404.html")
 
-    if request.GET["state"] != request.session["twitch_state"]:
-        raise Http404
 
-    request.session["twitch_code"] = request.GET["code"]
-    return redirect(request.session["twitch_next"])
+def view_500(request: HttpRequest) -> HttpResponse:
+    """Render the 404 template."""
+
+    return render(request, "core/500.html")

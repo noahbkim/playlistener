@@ -1,0 +1,19 @@
+{% extends "shared/default.html" %}
+{% load static %}
+
+{% block content %}
+<h1>500</h1>
+<p>
+  A server error occurred. Sorry about that! If the issue persists, please let a server administrator know.
+  {% if context %}
+    Make sure to include a screenshot or copy of the following debug information:
+  {% endif %}
+</p>
+{% if context %}
+  <pre>
+    <code>
+      {{ context }}
+    </code>
+  </pre>
+{% endif %}
+{% endblock %}

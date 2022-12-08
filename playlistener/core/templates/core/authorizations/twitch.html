@@ -1,0 +1,28 @@
+<div class="window layer1 theme-twitch">
+  <div class="accent"></div>
+  <div class="actual">
+    <h2 class="header">Twitch Authorization</h2>
+    <div class="content">
+      {% if twitch %}
+        <div class="form-group">
+          {% if spotify_exception %}
+          Error: {{ spotify_exception }}. Please reauthorize.
+          {% else %}
+          This Spotify authorization is under account <strong>{{ spotify_user.display_name }}</strong>, ID <code>{{ spotify_user.id }}</code>.
+          The authorization tokens were last refreshed <span class="time" data-time="{{ request.user.spotify.time_refreshed.isoformat }}">on {{ request.user.spotify.time_refreshed | date:"P e" }} on {{ request.user.spotify.time_refreshed | date:"F d, Y" }}</span>.
+          {% endif %}
+        </div>
+        <div class="form-group buttons">
+          <a
+            class="button primary"
+            href="{% url "core:oauth_spotify" %}?next={% url "core:oauth_spotify_update" %}"
+          >
+            Reauthorize Spotify
+          </a>
+        </div>
+      {% else %}
+        <div class="form-group">Please authorize your Twitch account to continue!</div>
+      {% endif %}
+    </div>
+  </div>
+</div>

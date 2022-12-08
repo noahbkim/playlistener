@@ -1,0 +1,30 @@
+{% extends "shared/default.html" %}
+
+{% block bodyclass %}modal{% endblock %}
+
+{% block content %}
+<div class="window layer1 theme-twitch">
+  <div class="accent"></div>
+  <div class="actual">
+    <h1 class="header">Authorize Twitch</h1>
+    <div class="content">
+      <div class="steps">
+        <div class="step spotify done">&#10003;</div>
+        <div class="link spotify-twitch"></div>
+        <div class="step twitch"></div>
+        <div class="link selected"></div>
+        <div class="step selected"></div>
+      </div>
+      <p class="form-group">
+        Now we just need to verify your Twitch account.
+        Unlike with Spotify, we don't need to request any permissions; this step simply ensures that Playlistener can find your channel and chat.
+      </p>
+      <div class="form-group buttons">
+        <a class="button primary" href="{% url "core:oauth_twitch" %}?next={% url "core:register_account" %}">
+          Authorize
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

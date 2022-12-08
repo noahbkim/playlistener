@@ -4,10 +4,21 @@
 
 {% block content %}
 <div class="window layer1">
-  <div class="accent"></div>
+  <div class="accent selected"></div>
   <div class="actual">
     <h1 class="header">Register</h1>
     <div class="content">
+      <div class="steps">
+        <div class="step selected"></div>
+        <div class="link selected"></div>
+        <div class="step selected"></div>
+        <div class="link selected"></div>
+        <div class="step selected"></div>
+      </div>
+      <p>
+        While registering you will be asked to authorize our servers to access your Spotify and Twitch accounts.
+        These steps are required for Playlistener to work, and explanations for why will be provided along the way.
+      </p>
       {% if request.GET.error == "uninvited" %}
       <ul class="errors">
         <li>You haven't been invited to register!</li>

@@ -6,16 +6,16 @@ from django.views.generic import TemplateView, FormView, UpdateView, DeleteView
 from django.conf import settings
 from django.db import transaction
 from django.contrib.auth import login, views
+from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse
 
-import requests
 import logging
 
+from common.oauth import get_view_url, OAuthStartView, OAuthReceiveView
 from common.errors import InternalError
-from common.oauth import generate_state, get_url, OAuthStartView, OAuthReceiveView
-from .models import User, Invitation, SpotifyAuthorization, TwitchIntegration
+from .models import User, Invitation, SpotifyAuthorization, TwitchAuthorization, TwitchIntegration
 from .forms import TwitchIntegrationForm
 
 __all__ = (
@@ -23,77 +23,211 @@ __all__ = (
     "LogoutView",
     "IndexView",
     "RegistrationView",
-    "FinishRegistrationView")
+    "SpotifyRegistrationView",
+    "TwitchRegistrationView",
+    "AccountRegistrationView",)
 
 
 logger = logging.getLogger(__name__)
 
-SPOTIFY_SCOPE = " ".join((
-    "playlist-modify-public",
-    "user-read-playback-state",
-    "user-modify-playback-state",
-    "user-read-recently-played",))
+
+class SpotifyOAuthStartView(OAuthStartView):
+    """Start Spotify OAuth for user authorization"""
+
+    next_session_name = "spotify_next"
+    state_session_name = "spotify_state"
+    oauth_url = "https://accounts.spotify.com/authorize"
+    oauth_client_id = settings.SPOTIFY_CLIENT_ID
+    oauth_scope = (
+        "playlist-modify-public"
+        " user-read-playback-state"
+        " user-modify-playback-state"
+        " user-read-recently-played")
+    oauth_receive_view = "core:oauth_spotify_receive"
 
 
-def generate_spotify_authorization_url(state: str, scope: str = "") -> str:
-    """Used to manually acquire the user code."""
+class SpotifyOAuthReceiveView(OAuthReceiveView):
+    """Receive Twitch OAuth and redirect."""
 
-    return (
-        "https://accounts.spotify.com/authorize"
-        "?response_type=code"
-        f"&client_id={settings.SPOTIFY_CLIENT_ID}"
-        f"&scope={scope}"
-        f"&redirect_uri={settings.SPOTIFY_REDIRECT_URI}"
-        f"&state={state}")
+    next_session_name = "spotify_next"
+    state_session_name = "spotify_state"
+    code_session_name = "spotify_code"
+    error_session_name = "spotify_error"
 
 
-def generate_twitch_authorization_url(state: str, scope: str = "") -> str:
-    """Used to get the channel name."""
+@login_required
+def view_spotify_oauth_update(request: HttpRequest) -> HttpResponse:
+    """Update Spotify authorization."""
 
-    return (
-        "https://id.twitch.tv/oauth2/authorize"
-        "?response_type=code"
-        f"&client_id={settings.TWITCH_CLIENT_ID}"
-        f"&redirect_uri={settings.TWITCH_REDIRECT_URI}"
-        f"&scope={scope}"
-        f"&state={state}")
+    if "spotify_code" not in request.session:
+        raise Http404
 
-
-def get_twitch_token(code: str, redirect_uri: str) -> dict:
-    """Go through final OAuth flow step to get access token."""
-
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    data = {
-        "code": code,
-        "client_id": settings.TWITCH_CLIENT_ID,
-        "client_secret": settings.TWITCH_CLIENT_SECRET,
-        "grant_type": "authorization_code",
-        "redirect_uri": redirect_uri}
-
-    response = requests.post(
-        "https://id.twitch.tv/oauth2/token",
-        headers=headers,
-        data=data)
-
-    if response.status_code != 200:
-        raise ValueError("TODO: fix this")
-
-    return response.json()
+    request.user.spotify.request(request.session["spotify_code"])
+    return redirect("core:index")
 
 
-def get_twitch_user(access_token: str) -> dict:
-    """Access user endpoint for token-owner."""
+class TwitchOAuthStartView(OAuthStartView):
+    """Start Twitch OAuth for accessing user information."""
 
-    response = requests.get(
-        "https://api.twitch.tv/helix/users",
-        headers={
-            "Authorization": f"Bearer {access_token}",
-            "Client-Id": settings.TWITCH_CLIENT_ID})
+    next_session_name = "twitch_next"
+    state_session_name = "twitch_state"
+    oauth_url = "https://id.twitch.tv/oauth2/authorize"
+    oauth_client_id = settings.TWITCH_CLIENT_ID
+    oauth_scope = ""
+    oauth_receive_view = "core:oauth_twitch_receive"
 
-    if response.status_code != 200:
-        raise ValueError("TODO: fix this")
 
-    return response.json()["data"][0]
+class TwitchOAuthReceiveView(OAuthReceiveView):
+    """Receive Twitch OAuth and redirect."""
+
+    next_session_name = "twitch_next"
+    state_session_name = "twitch_state"
+    code_session_name = "twitch_code"
+    error_session_name = "twitch_error"
+
+
+class RegistrationView(TemplateView):
+    """Start registration process by verifying username."""
+
+    template_name = "core/register/index.html"
+    username_session_name: str = "register_username"
+
+    @classmethod
+    def post(cls, request: HttpRequest) -> HttpResponse:
+        """Handle post username."""
+
+        username = request.POST["username"]
+        if User.objects.filter(username=username).exists():
+            return redirect("core:login")
+
+        invitation = Invitation.objects.filter(username=username).first()
+        if invitation is None:
+            return redirect(reverse("core:register") + "?error=uninvited")
+
+        request.session[cls.username_session_name] = username
+        return redirect("core:register_spotify")
+
+
+class SpotifyRegistrationView(TemplateView):
+    """Provide information about Spotify authorization step."""
+
+    template_name = "core/register/spotify/index.html"
+
+    def get(self, request, *args, **kwargs):
+        """Reset state."""
+
+        request.session.pop("spotify_code", None)
+        return super().get(request, *args, **kwargs)
+
+
+class SpotifyRegistrationFinishView(TemplateView):
+    """Provide error handling and next steps."""
+
+    template_name = "core/register/spotify/finish.html"
+    authorization_session_name: str = "spotify_registration_authorization"
+
+    def get(self, request, *args, **kwargs):
+        """Check if spotify_code has been set."""
+
+        if SpotifyOAuthReceiveView.code_session_name not in request.session:
+            return redirect("core:register_spotify")
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        """If we've received the Spotify code, get data."""
+
+        context_data = super().get_context_data(**kwargs)
+
+        code = self.request.session[SpotifyOAuthReceiveView.code_session_name]
+        if code is None:
+            context_data["state"] = "unauthorized"
+            return context_data
+
+        authorization_data = self.request.session.get(self.authorization_session_name)
+        if authorization_data is not None:
+            authorization = SpotifyAuthorization.deserialize(authorization_data)
+        else:
+            try:
+                authorization = SpotifyAuthorization()
+                authorization.authorize(self.request, code)
+            except InternalError:
+                context_data["state"] = "invalid"
+                return context_data
+            self.request.session[self.authorization_session_name] = authorization.serialize()
+
+        try:
+            spotify_user_data = authorization.get_me()
+        except InternalError as error:
+            logger.error("Error trying to access user data after authorizing Spotify: %s: %s", error, error.details)
+            context_data["state"] = "error"
+            context_data["error"] = "Error retrieving Spotify user data! Please try again later."
+            return context_data
+
+        context_data["state"] = "authorized"
+        context_data["spotify_user"] = spotify_user_data
+        return context_data
+
+
+class TwitchRegistrationView(TemplateView):
+    """Provide information about Spotify authorization step."""
+
+    template_name = "core/register/twitch.html"
+
+
+class AccountRegistrationView(FormView):
+    """Finalize registration details."""
+
+    template_name = "core/register/account.html"
+    form_class = UserCreationForm
+
+    def check_flow(self) -> tuple[str, str, str, Invitation]:
+        """Verify preconditions for this view."""
+
+        username = self.request.session.get(RegistrationView.username_session_name)
+        if username is None:
+            return redirect("core:register")
+
+        spotify_code = self.request.session.get(SpotifyOAuthReceiveView.code_session_name)
+        if spotify_code is None:
+            return redirect("core:register_spotify")
+
+        twitch_code = self.request.session.get(TwitchOAuthReceiveView.code_session_name)
+        if twitch_code:
+            return redirect("core:register_twitch")
+
+        invitation = Invitation.objects.filter(username=username).first()
+        if invitation is None:
+            return redirect(reverse("core:register") + "?error=uninvited")
+
+    def get(self, request, *args, **kwargs):
+        """"""
+
+
+
+    def form_valid(self, form: UserCreationForm):
+        """On user valid."""
+
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=username,
+                email=request.POST["email"],
+                first_name=request.POST["first_name"],
+                last_name=request.POST["last_name"],
+                password=request.POST["password"])
+
+            if invitation.administrator:
+                user.is_staff = user.is_superuser = True
+                user.save()
+
+            authorization = SpotifyAuthorization(user=user)
+            authorization.authorize(request, request.session["spotify_code"])
+            authorization.save()
+
+        invitation.delete()
+
+        login(request, user)
+        return redirect("core:index")
+
 
 
 class LoginView(views.LoginView):
@@ -116,78 +250,10 @@ class IndexView(LoginRequiredMixin, TemplateView):
         """Get authorization and integration."""
 
         context = super().get_context_data(**kwargs)
-
-        try:
-            context["spotify_user"] = self.request.user.spotify.get_me()
-        except InternalError as exception:
-            context["spotify_exception"] = exception
-
-        context["twitch_integrations"] = twitch_integrations = []
-        for twitch_integration in self.request.user.twitch_integrations.all():
-            twitch_integrations.append(TwitchIntegrationForm(instance=twitch_integration))
-
+        context.update(
+            spotify=SpotifyAuthorization.objects.filter(user=self.request.user).first(),
+            twitch=TwitchAuthorization.objects.filter(user=self.request.user).first())
         return context
-
-
-class RegistrationView(TemplateView):
-    """Start registration process by verifying username."""
-
-    template_name = "core/register/index.html"
-
-    @classmethod
-    def post(cls, request: HttpRequest) -> HttpResponse:
-        """Handle post username."""
-
-        username = request.POST["username"]
-        if User.objects.filter(username=username).exists():
-            return redirect("core:login")
-
-        invitation = Invitation.objects.filter(username=username).first()
-        if invitation is None:
-            return redirect(reverse("core:register") + "?error=uninvited")
-
-        request.session["username"] = username
-
-        return redirect(reverse("core:oauth_spotify") + "?next=" + reverse("core:register_finish"))
-
-
-class FinishRegistrationView(TemplateView):
-    """Finalize registration details."""
-
-    template_name = "core/register/finish.html"
-
-    @classmethod
-    def post(cls, request: HttpRequest) -> HttpResponse:
-        """Create the User and Spotify authorization."""
-
-        if "username" not in request.session or "spotify_code" not in request.session:
-            raise Http404
-
-        username = request.session["username"]
-
-        invitation = Invitation.objects.filter(username=username).first()
-        if invitation is None:
-            return redirect(reverse("core:register") + "?error=uninvited")
-
-        with transaction.atomic():
-            user = User.objects.create_user(
-                username=username,
-                email=request.POST["email"],
-                first_name=request.POST["first_name"],
-                last_name=request.POST["last_name"],
-                password=request.POST["password"])
-
-            if invitation.administrator:
-                user.is_staff = user.is_superuser = True
-                user.save()
-
-            authorization = SpotifyAuthorization(user=user)
-            authorization.request(request.session["spotify_code"])
-
-        invitation.delete()
-
-        login(request, user)
-        return redirect("core:index")
 
 
 class TwitchIntegrationView(LoginRequiredMixin, FormView):
@@ -212,7 +278,7 @@ class TwitchIntegrationView(LoginRequiredMixin, FormView):
 
         if twitch_user is None:
             twitch_code = self.request.session["twitch_code"]
-            token_data = get_twitch_token(twitch_code, get_url(self.request, "core:oauth_twitch_receive"))
+            token_data = get_twitch_token(twitch_code, get_view_url(self.request, "core:oauth_twitch_receive"))
             twitch_user = get_twitch_user(token_data["access_token"])
             self.request.session["twitch_user"] = dict(
                 key=twitch_code,
@@ -260,62 +326,6 @@ class TwitchIntegrationDeleteView(LoginRequiredMixin, DeleteView):
         """Go back to index."""
 
         return reverse("core:index")
-
-
-@login_required
-def view_spotify_oauth(request: HttpRequest) -> HttpResponse:
-    """Start OAuth process."""
-
-    if "next" not in request.GET:
-        raise Http404
-
-    state = request.session["spotify_state"] = generate_state()
-    request.session["spotify_next"] = request.GET["next"]
-    return redirect(generate_spotify_authorization_url(state, scope=SPOTIFY_SCOPE))
-
-
-@login_required
-def view_spotify_oauth_receive(request: HttpRequest) -> HttpResponse:
-    """Receive OAuth, store to session, redirect."""
-
-    if "spotify_state" not in request.session:
-        raise Http404
-
-    if request.GET["state"] != request.session["spotify_state"]:
-        raise Http404
-
-    request.session["spotify_code"] = request.GET["code"]
-    return redirect(request.session["spotify_next"])
-
-
-@login_required
-def view_spotify_oauth_update(request: HttpRequest) -> HttpResponse:
-    """Update Spotify authorization."""
-
-    if "spotify_code" not in request.session:
-        raise Http404
-
-    request.user.spotify.request(request.session["spotify_code"])
-    return redirect("core:index")
-
-
-class TwitchOAuthStartView(LoginRequiredMixin, OAuthStartView):
-    """Start Twitch OAuth for accessing user information."""
-
-    next_session_name = "twitch_next"
-    state_session_name = "twitch_state"
-    oauth_url = "https://id.twitch.tv/oauth2/authorize"
-    oauth_client_id = settings.TWITCH_CLIENT_ID
-    oauth_scope = ""
-    oauth_receive_view = "core:oauth_twitch_receive"
-
-
-class TwitchOAuthReceiveView(LoginRequiredMixin, OAuthReceiveView):
-    """Receive Twitch OAuth and redirect."""
-
-    next_session_name = "twitch_next"
-    state_session_name = "twitch_state"
-    code_session_name = "twitch_code"
 
 
 def view_404(request: HttpRequest, exception: Resolver404) -> HttpResponse:

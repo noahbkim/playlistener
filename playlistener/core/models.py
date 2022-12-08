@@ -2,20 +2,22 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.conf import settings
+from django.http.request import HttpRequest
 
 import requests
 import base64
-from typing import Callable, Iterable, Optional
+from typing import Iterable, Optional
 
+from common.oauth import OAuthAuthorization, get_view_url
 from common.errors import UsageError, InternalError
 
 __all__ = (
     "User",
     "Invitation",
     "SpotifyAuthorization",
+    "TwitchAuthorization",
     "TwitchIntegration",
-    "TwitchIntegrationUser",
-    "DiscordIntegration",)
+    "TwitchIntegrationUser",)
 
 
 class Invitation(models.Model):
@@ -27,26 +29,15 @@ class Invitation(models.Model):
     time_created = models.DateTimeField(default=timezone.now)
 
 
-class SpotifyAuthorization(models.Model):
+class SpotifyAuthorization(OAuthAuthorization):
     """Contains API keys for Spotify use."""
 
     user = models.OneToOneField(to=User, on_delete=models.CASCADE, related_name="spotify")
 
-    access_token = models.CharField(max_length=250)
-    refresh_token = models.CharField(max_length=250)
-
-    token_type = models.CharField(max_length=50)
-    expires_in = models.PositiveSmallIntegerField()
-    scope = models.CharField(max_length=250)
-
-    time_created = models.DateTimeField(default=timezone.now)
-    time_modified = models.DateTimeField(auto_now=True)
-    time_refreshed = models.DateTimeField(default=timezone.now)
-
     CLIENT_TOKEN_DATA = f"{settings.SPOTIFY_CLIENT_ID}:{settings.SPOTIFY_CLIENT_SECRET}"
     CLIENT_TOKEN = base64.b64encode(CLIENT_TOKEN_DATA.encode()).decode()
 
-    def request(self, code: str):
+    def authorize(self, request: HttpRequest, code: str):
         """Create a Spotify authorization with an OAuth code."""
 
         headers = {
@@ -55,7 +46,7 @@ class SpotifyAuthorization(models.Model):
         data = {
             "code": code,
             "grant_type": "authorization_code",
-            "redirect_uri": settings.SPOTIFY_REDIRECT_URI}
+            "redirect_uri": get_view_url(request, "core:oauth_spotify_receive")}
 
         self.time_refreshed = timezone.now()
         response = requests.post(
@@ -66,7 +57,7 @@ class SpotifyAuthorization(models.Model):
         self.update(response)
 
     def refresh(self):
-        """Refresh the tokens."""
+        """Refresh the Spotify authorization token."""
 
         headers = {
             "Authorization": f"Basic {self.CLIENT_TOKEN}",
@@ -97,23 +88,6 @@ class SpotifyAuthorization(models.Model):
         self.token_type = data["token_type"]
         self.expires_in = data["expires_in"]
         self.scope = data["scope"]
-        self.save()
-
-    def retry(self, request: Callable[[], requests.Response]) -> requests.Response:
-        """Try to refresh if it doesn't work initially."""
-
-        just_refreshed = False
-        if self.is_token_expired():
-            self.refresh()
-            just_refreshed = True
-
-        response = request()
-
-        if not just_refreshed and response.status_code == 401:
-            self.refresh()
-            response = request()
-
-        return response
 
     def make_headers(self, **extra) -> dict:
         """Reuse."""
@@ -122,11 +96,6 @@ class SpotifyAuthorization(models.Model):
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
             **extra}
-
-    def is_token_expired(self) -> bool:
-        """Check if the cached token is past expiry."""
-
-        return timezone.now() >= self.time_refreshed + timezone.timedelta(seconds=self.expires_in)
 
     def get_me(self) -> dict:
         """Get user info."""
@@ -243,6 +212,90 @@ class SpotifyAuthorization(models.Model):
                 details=f"status {response.status_code}; {response.content}")
 
 
+class TwitchAuthorization(OAuthAuthorization):
+    """Twitch authorization for single user."""
+
+    user = models.OneToOneField(to=User, on_delete=models.CASCADE, related_name="twitch")
+
+    def authorize(self, request: HttpRequest, code: str):
+        """Create a Twitch authorization with an OAuth code."""
+
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded"}
+        data = {
+            "code": code,
+            "grant_type": "authorization_code",
+            "client_id": settings.TWITCH_CLIENT_ID,
+            "client_secret": settings.TWITCH_CLIENT_SECRET,
+            "redirect_uri": get_view_url(request, "core:oauth_twitch_receive")}
+
+        self.time_refreshed = timezone.now()
+        response = requests.post(
+            "https://id.twitch.tv/oauth2/token",
+            headers=headers,
+            data=data)
+
+        self.update(response)
+
+    def refresh(self):
+        """Refresh the Twitch authorization token."""
+
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded"}
+        data = {
+            "client_id": settings.TWITCH_CLIENT_ID,
+            "client_secret": settings.TWITCH_CLIENT_SECRET,
+            "grant_type": "refresh_token",
+            "refresh_token": self.refresh_token}
+
+        self.time_refreshed = timezone.now()
+        response = requests.post(
+            "https://id.twitch.tv/oauth2/token",
+            headers=headers,
+            data=data)
+
+        self.update(response)
+
+    def update(self, response: requests.Response):
+        """Update based on authorization response."""
+
+        if response.status_code != 200:
+            raise InternalError(
+                "failed to authorize with Twitch, please reauthorize",
+                details=f"status {response.status_code}; {response.content}")
+
+        data = response.json()
+        self.access_token = data["access_token"]
+        self.refresh_token = data.get("refresh_token", self.refresh_token)
+        self.token_type = data["token_type"]
+        self.expires_in = data["expires_in"]
+        self.scope = " ".join(data["scope"])
+        self.save()
+
+    def make_headers(self, **extra) -> dict:
+        """Reuse."""
+
+        return {
+            "Authorization": f"Bearer {self.access_token}",
+            "Client-Id": settings.TWITCH_CLIENT_ID,
+            "Content-Type": "application/json",
+            **extra}
+
+    def get_me(self) -> dict:
+        """Get the authorized user."""
+
+        response = self.retry(lambda: requests.get(
+            "https://api.twitch.tv/helix/users",
+            headers=self.make_headers()))
+
+        if response.status_code != 200:
+            raise InternalError(
+                "failed to access authorized user",
+                details=f"status {response.status_code}; {response.content}")
+
+        return response.json()["data"][0]
+
+
 class Integration(models.Model):
     """Base fields."""
 
@@ -259,7 +312,7 @@ class Integration(models.Model):
 class TwitchIntegration(Integration):
     """Adds hooks to the playlistener Twitch bot."""
 
-    user = models.ForeignKey(to=User, on_delete=models.CASCADE, related_name="twitch_integrations")
+    user = models.OneToOneField(to=User, on_delete=models.CASCADE, related_name="twitch_integration")
 
     twitch_id = models.CharField(max_length=100, unique=True)
     twitch_login = models.CharField(max_length=100, unique=True)
@@ -290,13 +343,3 @@ class TwitchIntegrationUser(models.Model):
     manual_cooldown = models.BooleanField(default=False)
 
     queue_count = models.PositiveIntegerField(default=0)
-
-
-class DiscordIntegration(Integration):
-    """Add hooks to the Discord bot."""
-
-    user = models.ForeignKey(to=User, on_delete=models.CASCADE, related_name="discord_integrations")
-
-    guild = models.CharField(max_length=200)
-
-    playlist_id = models.CharField(max_length=50)

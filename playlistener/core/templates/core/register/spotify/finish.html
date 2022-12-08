@@ -1,0 +1,54 @@
+{% extends "shared/default.html" %}
+
+{% block bodyclass %}modal{% endblock %}
+
+{% block content %}
+<div class="window layer1 theme-spotify">
+  <div class="accent"></div>
+  <div class="actual">
+    <h1 class="header">Authorize Spotify</h1>
+    <div class="content">
+      <div class="steps">
+        <div class="step selected spotify">{% if state == "authorized" %}&#10003;{% else %}&#10007;{% endif %}</div>
+        <div class="link selected"></div>
+        <div class="step selected"></div>
+        <div class="link selected"></div>
+        <div class="step selected"></div>
+      </div>
+      {% if state == "authorized" %}
+        <p class="form-group">
+          Hi, {{ spotify_user.username }}!
+          Glad to have you on board.
+          Let's move on to Twitch authorization.
+        </p>
+        <div class="form-group buttons">
+          <a class="button primary" href="{% url "core:register_twitch" %}">
+            Continue
+          </a>
+        </div>
+      {% else %}
+        {% if state == "unauthorized" %}
+          <p class="form-group">
+            Whoops, it looks like you denied authorization!
+            Without your permission, Playlistener won't be able to work properly.
+          </p>
+        {% elif state == "invalid" %}
+          <p class="form-group">
+            Your Spotify OAuth code appears to be invalid...I have no idea how you even did that.
+            Why don't you give it another shot!
+          </p>
+        {% else %}
+          <p class="form-group">
+            Now you've really done it...why don't you go back and try authorizing again.
+          </p>
+        {% endif %}
+        <div class="form-group buttons">
+          <a class="button primary" href="{% url "core:register_spotify" %}">
+            Authorize again
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

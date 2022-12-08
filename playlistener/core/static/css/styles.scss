@@ -70,3 +70,45 @@ body {
   margin-top: 0;
   padding-left: 1em;
 }
+
+.steps {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2em;
+
+  .step {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 2em;
+    height: 2em;
+    border-radius: 50%;
+
+    &.spotify {
+      background-color: $color-spotify;
+    }
+
+    &.twitch {
+      background-color: $color-twitch;
+    }
+
+    &.playlistener {
+      background-color: $color-primary;
+    }
+  }
+
+  .link {
+    height: 2px;
+    width: 2em;
+
+    &.spotify-twitch {
+      background-image: linear-gradient(to right, $color-spotify, $color-twitch);
+    }
+
+    &.twitch-playlistener {
+      background-image: linear-gradient(to right, $color-twitch, $color-primary);
+    }
+  }
+}

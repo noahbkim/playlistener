@@ -17,7 +17,7 @@
         </p>
         <div class="form-group buttons">
           {% if step.next %}
-            <a class="button primary" href="{% url "core:authorize_twitch" %}">
+            <a class="button primary" href="{% url step.next.view %}{% query "flow" %}">
               {{ step.next.title|capfirst }}
             </a>
           {% else %}
@@ -43,7 +43,7 @@
           </p>
         {% endif %}
         <div class="form-group buttons">
-          <a class="button primary" href="{% url "core:authorize_twitch" %}">
+          <a class="button primary" href="{% url "core:authorize_twitch" %}{% query "flow" %}">
             Authorize again
           </a>
         </div>

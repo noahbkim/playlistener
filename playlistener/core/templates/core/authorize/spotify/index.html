@@ -1,4 +1,5 @@
 {% extends "shared/default.html" %}
+{% load flow %}
 
 {% block bodyclass %}modal{% endblock %}
 
@@ -8,13 +9,7 @@
   <div class="actual">
     <h1 class="header">Authorize Spotify</h1>
     <div class="content">
-      <div class="steps">
-        <div class="step selected spotify"></div>
-        <div class="link selected"></div>
-        <div class="step selected"></div>
-        <div class="link selected"></div>
-        <div class="step selected"></div>
-      </div>
+      {% flow %}
       <p class="form-group">
         This step will give Playlistener limited access to your Spotify account.
         We'll request the following permissions:
@@ -27,14 +22,14 @@
           <strong>Modify playback state</strong> enables adding songs to your queue.
         </li>
         <li>
-          <strong>Read playback state</strong> allows the bot to share the song and playlist you're currently listening to.
+          <strong>Read playback state</strong> allows the bot to see the song and playlist you're currently listening to.
         </li>
         <li>
-          <strong>Read recently played</strong>: allows the bot to share to the last couple songs you've listened to.
+          <strong>Read recently played</strong>: allows the bot to see the last couple songs you've listened to.
         </li>
       </ul>
       <div class="form-group buttons">
-        <a class="button primary" href="{% url "core:oauth_spotify" %}?next={% url "core:register_spotify_finish" %}">
+        <a class="button primary" href="{% url "core:oauth_spotify" %}?next={% url "core:authorize_spotify_finish" %}{% query "flow" %}">
           Authorize
         </a>
       </div>

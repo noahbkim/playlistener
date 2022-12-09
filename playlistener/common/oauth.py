@@ -134,6 +134,8 @@ class OAuthStartView(View):
         if next_url is None:
             raise Http404
 
+        print("next url:", next_url)
+
         state = request.session[self.state_session_name] = self.get_state()
         request.session[self.next_session_name] = next_url
         return redirect(self.get_oauth_url(state))

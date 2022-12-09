@@ -78,6 +78,12 @@ body {
   justify-content: center;
   margin-bottom: 2em;
 
+  $themes: (
+    "primary" $color-primary $color-primary-inverse,
+    "spotify" $color-spotify $color-spotify-inverse,
+    "twitch" $color-twitch $color-twitch-inverse,
+  );
+
   .step {
     display: flex;
     justify-content: center;
@@ -86,16 +92,12 @@ body {
     height: 2em;
     border-radius: 50%;
 
-    &.spotify {
-      background-color: $color-spotify;
-    }
-
-    &.twitch {
-      background-color: $color-twitch;
-    }
-
-    &.playlistener {
-      background-color: $color-primary;
+    @each $name, $background-color, $color in $themes {
+      &.#{$name} {
+        font-weight: bold;
+        color: $color;
+        background-color: $background-color;
+      }
     }
   }
 
@@ -103,12 +105,12 @@ body {
     height: 2px;
     width: 2em;
 
-    &.spotify-twitch {
-      background-image: linear-gradient(to right, $color-spotify, $color-twitch);
-    }
-
-    &.twitch-playlistener {
-      background-image: linear-gradient(to right, $color-twitch, $color-primary);
+    @each $name1, $background-color1, $color1 in $themes {
+      @each $name2, $background-color2, $color2 in $themes {
+        &.#{$name1}-#{$name2} {
+          background-image: linear-gradient(to right, $background-color1, $background-color2);
+        }
+      }
     }
   }
 }

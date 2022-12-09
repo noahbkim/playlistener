@@ -1,0 +1,60 @@
+{% extends "shared/default.html" %}
+{% load flow %}
+
+{% block bodyclass %}modal{% endblock %}
+
+{% block content %}
+<div class="window layer1 theme-spotify">
+  <div class="accent"></div>
+  <div class="actual">
+    <h1 class="header">
+      {% if state == "authorized" %}
+        Spotify Authorized!
+      {% else %}
+        Whoops...
+      {% endif %}
+    </h1>
+    <div class="content">
+      {% flow %}
+      {% if state == "authorized" %}
+        <p class="form-group">
+          Hi, <a href="{{ spotify_user.external_urls.spotify }}" target="_blank">{{ spotify_user.display_name }}</a>.
+          Please confirm your Spotify account has been authorized correctly by clicking on your linked display name.
+        </p>
+        <div class="form-group buttons">
+          {% if step.next %}
+            <a class="button primary" href="{% url "core:authorize_twitch" %}{% query "flow" %}">
+              {{ step.next.title|capfirst }}
+            </a>
+          {% else %}
+            <a class="button primary" href="{% url "core:index" %}">
+              Return
+            </a>
+          {% endif %}
+        </div>
+      {% else %}
+        {% if state == "unauthorized" %}
+          <p class="form-group">
+            Whoops, it looks like you denied authorization!
+            Without your permission, Playlistener won't be able to work properly.
+          </p>
+        {% elif state == "invalid" %}
+          <p class="form-group">
+            Your Spotify OAuth code appears to be invalid...I have no idea how you even did that.
+            Why don't you give it another shot!
+          </p>
+        {% else %}
+          <p class="form-group">
+            Now you've really done it...why don't you go back and try authorizing again.
+          </p>
+        {% endif %}
+        <div class="form-group buttons">
+          <a class="button primary" href="{% url "core:authorize_spotify" %}{% query "flow" %}">
+            Authorize again
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

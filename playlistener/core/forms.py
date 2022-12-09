@@ -1,8 +1,26 @@
+import django.contrib.auth.forms
 from django import forms
 from django.db.models import Q
 
 from common.errors import InternalError, UsageError
 from . import models
+
+
+class UserCreationForm(django.contrib.auth.forms.UserCreationForm):
+    """Only require email, name, passwords."""
+
+    def clean_email(self):
+        """Make sure the user has been invited."""
+
+        email = self.cleaned_data["email"]
+        invitation = models.Invitation.objects.filter(username=email).first()
+        if invitation is None:
+            raise forms.ValidationError(f"No invitation found for {email}")
+        self.cleaned_data["username"] = email
+        return email
+
+    class Meta(django.contrib.auth.forms.UserCreationForm.Meta):
+        fields = ("email", "first_name", "last_name")
 
 
 class TwitchIntegrationForm(forms.ModelForm):

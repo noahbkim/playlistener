@@ -16,18 +16,19 @@
 {% endblock %}
 
 {% block content %}
-<h1>
-  Welcome, {{ request.user.first_name }}
-</h1>
-{% include "core/authorizations/spotify.html" %}
-{% include "core/authorizations/twitch.html" %}
-
-{#<div class="window layer1 theme-discord">#}
-{#  <div class="accent background-color-discord"></div>#}
-{#  <div class="actual">#}
-{#    <h2 class="header">Discord Integrations</h2>#}
-{#  </div>#}
-{#</div>#}
+<h1>Dashboard</h1>
+<div class="window layer1 theme-twitch">
+  <div class="accent twitch"></div>
+  <div class="actual">
+    <h1 class="header">Twitch Integration</h1>
+    <div class="content">
+      {% if twitch_integration %}
+      {% else %}
+        <a class="button primary" href="{% url "core:flow_twitch_integration" %}">Set up Twitch integration</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
 <div class="windowless form-group buttons">
   <a class="button float-right" href="{% url "core:logout" %}">Logout</a>
 </div>

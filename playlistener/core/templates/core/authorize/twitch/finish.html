@@ -1,30 +1,30 @@
 {% extends "shared/default.html" %}
+{% load flow %}
 
 {% block bodyclass %}modal{% endblock %}
 
 {% block content %}
-<div class="window layer1 theme-spotify">
+<div class="window layer1 theme-twitch">
   <div class="accent"></div>
   <div class="actual">
-    <h1 class="header">Authorize Spotify</h1>
+    <h1 class="header">Twitch Authorized!</h1>
     <div class="content">
-      <div class="steps">
-        <div class="step selected spotify">{% if state == "authorized" %}&#10003;{% else %}&#10007;{% endif %}</div>
-        <div class="link selected"></div>
-        <div class="step selected"></div>
-        <div class="link selected"></div>
-        <div class="step selected"></div>
-      </div>
+      {% flow %}
       {% if state == "authorized" %}
         <p class="form-group">
-          Hi, {{ spotify_user.username }}!
-          Glad to have you on board.
-          Let's move on to Twitch authorization.
+          Hi, <a href="https://twitch.tv/{{ twitch_user.login }}" target="_blank">{{ twitch_user.login }}</a>.
+          Please confirm your Twitch account has been authorized correctly by clicking on your linked display name.
         </p>
         <div class="form-group buttons">
-          <a class="button primary" href="{% url "core:register_twitch" %}">
-            Continue
-          </a>
+          {% if step.next %}
+            <a class="button primary" href="{% url "core:authorize_twitch" %}">
+              {{ step.next.title|capfirst }}
+            </a>
+          {% else %}
+            <a class="button primary" href="{% url "core:index" %}">
+              Return
+            </a>
+          {% endif %}
         </div>
       {% else %}
         {% if state == "unauthorized" %}
@@ -34,7 +34,7 @@
           </p>
         {% elif state == "invalid" %}
           <p class="form-group">
-            Your Spotify OAuth code appears to be invalid...I have no idea how you even did that.
+            Your Twitch OAuth code appears to be invalid...I have no idea how you even did that.
             Why don't you give it another shot!
           </p>
         {% else %}
@@ -43,7 +43,7 @@
           </p>
         {% endif %}
         <div class="form-group buttons">
-          <a class="button primary" href="{% url "core:register_spotify" %}">
+          <a class="button primary" href="{% url "core:authorize_twitch" %}">
             Authorize again
           </a>
         </div>

@@ -56,8 +56,8 @@ $font-family-mono: 'Fira Mono', 'mono';
 
 // Palette
 
-$color-primary: #74E9D4;
-$color-primary-inverse: inverse($color-primary);
+$color-primary: #4d9de0;
+$color-primary-inverse: white;
 
 .color-primary { color: $color-primary !important; }
 .background-color-primary { background-color: $color-primary; }
@@ -75,8 +75,13 @@ $color-accent-inverse: inverse($color-accent);
 .background-color-accent { background-color: $color-accent; }
 
 $color-spotify: #1DB954;
+$color-spotify-inverse: inverse($color-spotify);
+
 $color-twitch: #9146FF;
+$color-twitch-inverse: inverse($color-twitch);
+
 $color-discord: #5865F2;
+$color-discord-inverse: inverse($color-discord);
 
 @mixin theme($color, $color-inverse) {
   .color-primary {
@@ -173,6 +178,15 @@ $layer0: (
     background-color: $layer0-color-background-hover;
   }
 
+  .disabled {
+    color: $layer0-color-disabled;
+    background-color: $layer0-color-background-disabled;
+  }
+
+  .selected {
+    background-color: $layer0-color-background-selected;
+  }
+
   .hint {
     color: $layer0-color-hint;
   }
@@ -207,6 +221,11 @@ $layer1: (
 
   .hover:hover {
     background-color: $layer1-color-background-hover;
+  }
+
+  .disabled {
+    color: $layer1-color-disabled;
+    background-color: $layer1-color-background-disabled;
   }
 
   .selected {
@@ -249,6 +268,11 @@ $layer2: (
     background-color: $layer2-color-background-hover;
   }
 
+  .disabled {
+    color: $layer2-color-disabled;
+    background-color: $layer2-color-background-disabled;
+  }
+
   .selected {
     background-color: $layer2-color-background-selected;
   }
@@ -287,6 +311,11 @@ $layer3: (
 
   .hover:hover {
     background-color: $layer3-color-background-hover;
+  }
+
+  .disabled {
+    color: $layer3-color-disabled;
+    background-color: $layer3-color-background-disabled;
   }
 
   .selected {

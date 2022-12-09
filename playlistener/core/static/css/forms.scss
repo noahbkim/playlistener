@@ -5,23 +5,25 @@ label {
   display: block;
 }
 
-form {
-  p {
-    margin-top: 0;
-    margin-bottom: 2em;
-  }
-}
-
 .form {
   display: flex;
   flex-direction: column;
+}
+
+.form-space {
+  display: block;
+  height: $content-margin;
 }
 
 .form-group {
   display: block;
   margin-bottom: 1.5 * $content-margin;
 
-  &:last-child {
+  & > *:first-child {
+    margin-top: 0;
+  }
+
+  & > *:last-child {
     margin-bottom: 0;
   }
 

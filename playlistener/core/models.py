@@ -269,7 +269,7 @@ class TwitchAuthorization(OAuthAuthorization):
         self.refresh_token = data.get("refresh_token", self.refresh_token)
         self.token_type = data["token_type"]
         self.expires_in = data["expires_in"]
-        self.scope = " ".join(data["scope"])
+        self.scope = " ".join(data.get("scope", ()))
         self.save()
 
     def make_headers(self, **extra) -> dict:

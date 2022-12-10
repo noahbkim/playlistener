@@ -151,7 +151,10 @@ class IndexView(LoginRequiredMixin, TemplateView):
         """Get authorization and integration."""
 
         context = super().get_context_data(**kwargs)
-        context.update(twitch_integration=TwitchIntegration.objects.filter(user=self.request.user).first())
+        twitch_integration = TwitchIntegration.objects.filter(user=self.request.user).first()
+        context.update(
+            twitch_integration=twitch_integration,
+            twitch_integration_form=TwitchIntegrationForm(instance=twitch_integration))
         return context
 
 
@@ -292,35 +295,31 @@ class TwitchAuthorizationFinishView(FlowViewMixin, LoginRequiredMixin, TemplateV
         return super().get(request, *args, **kwargs, **context_data)
 
 
-class TwitchIntegrationView(LoginRequiredMixin, FormView):
+class TwitchIntegrationView(FlowViewMixin, LoginRequiredMixin, FormView):
     """Create a new twitch integration."""
 
-    template_name = "core/twitch.html"
+    template_name = "core/integrations/twitch/create.html"
     form_class = TwitchIntegrationForm
-    step = TwitchAuthorizationView.step
+    step = "integrate_twitch"
+
+    def dispatch(self, request: HttpRequest, *args, **kwargs):
+        """Make sure we have requisite authorizations."""
+
+        if not TwitchAuthorization.objects.filter(user=request.user).exists():
+            return redirect("core:flow_twitch_integration")
+        elif not SpotifyAuthorization.objects.filter(user=request.user).exists():
+            return redirect("core:flow_twitch_integration")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_initial(self):
+        """Users should only have one integration."""
+
+        return TwitchIntegration.objects.filter(user=self.request.user).first()
 
     def get_form_kwargs(self):
         """Add user to kwargs."""
 
-        if "twitch_code" not in self.request.session:
-            raise Http404
-
-        # The twitch_user["twitch_code"] should correspond to our current
-        # twitch_code; if it doesn't, we need to refresh.
-        twitch_user = None
-        if "twitch_user" in self.request.session:
-            cache = self.request.session["twitch_user"]
-            if cache["key"] == self.request.session["twitch_code"]:
-                twitch_user = cache["data"]
-
-        if twitch_user is None:
-            twitch_code = self.request.session["twitch_code"]
-            token_data = get_twitch_token(twitch_code, get_view_url(self.request, "core:oauth_twitch_receive"))
-            twitch_user = get_twitch_user(token_data["access_token"])
-            self.request.session["twitch_user"] = dict(
-                key=twitch_code,
-                data=twitch_user,)
-
+        twitch_user = self.request.user.twitch.get_me()
         kwargs = super().get_form_kwargs()
         kwargs.update(
             user=self.request.user,
@@ -343,7 +342,7 @@ class TwitchIntegrationView(LoginRequiredMixin, FormView):
 class TwitchIntegrationUpdateView(LoginRequiredMixin, UpdateView):
     """Allow modification and deletion."""
 
-    template_name = "core/twitch.html"
+    template_name = "core/integrations/twitch/create.html"
     form_class = TwitchIntegrationForm
     queryset = TwitchIntegration.objects
 
@@ -357,7 +356,7 @@ class TwitchIntegrationDeleteView(LoginRequiredMixin, DeleteView):
     """Allow modification and deletion."""
 
     queryset = TwitchIntegration.objects
-    template_name = "core/twitch_confirm_delete.html"
+    template_name = "core/integrations/delete/templates/core/integrations/twitch/twitch_confirm_delete.html"
 
     def get_success_url(self):
         """Go back to index."""

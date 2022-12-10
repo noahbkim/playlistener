@@ -1,0 +1,43 @@
+@import './mixins';
+@import './theme';
+
+table {
+  text-align: left;
+  border-collapse: collapse;
+  width: 100%;
+
+  th {
+    padding-bottom: 0.25 * $content-margin;
+  }
+
+  td {
+    padding: 0.25 * $content-margin 0;
+  }
+}
+
+table.rows {
+  border-collapse: collapse;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+
+  line-height: 1;
+
+  tr {
+    @include padding-even($content-margin);
+    margin-bottom: $content-margin;
+  }
+
+  td {
+    padding-top: $content-margin;
+    padding-bottom: $content-margin;
+
+    &:first-child {
+      @include border-radius-left($border-radius);
+    }
+
+    &:last-child {
+      @include border-radius-right($border-radius);
+    }
+  }
+}

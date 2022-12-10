@@ -2,6 +2,7 @@
 @import 'mixins';
 @import 'input';
 @import 'forms';
+@import 'table';
 
 body {
   max-width: 800px;
@@ -18,6 +19,16 @@ body {
   &:last-child:after {
     display: block;
     height: 1rem;
+  }
+}
+
+.clip {
+  & > *:first-child {
+    margin-top: 0;
+  }
+
+  & > *:last-child {
+    margin-bottom: 0;
   }
 }
 
@@ -48,6 +59,10 @@ body {
 
       & > *:first-child {
         margin-top: 0;
+      }
+
+      & > *:last-child {
+        margin-bottom: 0;
       }
     }
   }

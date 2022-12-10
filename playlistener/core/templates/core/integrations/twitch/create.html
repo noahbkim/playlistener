@@ -1,5 +1,6 @@
 {% extends "shared/default.html" %}
 {% load static %}
+{% load flow %}
 
 {% block head %}
 <script type="text/javascript" src="{% static "js/spotify.js" %}"></script>
@@ -13,7 +14,7 @@
     <div class="content">
       <form method="post">
         {% csrf_token %}
-        {% include "core/forms/twitch.html" %}
+        {% include "core/integrations/twitch/form.html" %}
       </form>
     </div>
   </div>

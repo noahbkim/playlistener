@@ -23,6 +23,7 @@
     <h1 class="header">Twitch Integration</h1>
     <div class="content">
       {% if twitch_integration %}
+        {% include "core/integrations/twitch/index.html" %}
       {% else %}
         <a class="button primary" href="{% url "core:flow_twitch_integration" %}">Set up Twitch integration</a>
       {% endif %}

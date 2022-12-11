@@ -4,10 +4,28 @@
     The bot includes bans, cooldowns, and live configuration for moderators and broadcasters.
   </p>
 </div>
-<div class="window layer2 theme-twitch">
+<div class="window layer2">
   <div class="accent"></div>
   <div class="actual">
-    <h2 class="header">Help</h2>
+    <h2 class="header">Options</h2>
+    <div class="content">
+      <form class="clip">
+{#            <form method="post" action="{% url "core:twitch_update" form.instance.pk %}">#}
+        {% with form=twitch_integration_form %}
+          {% csrf_token %}
+          {% include "core/integrations/twitch/form.html" %}
+        {% endwith %}
+      </form>
+    </div>
+  </div>
+</div>
+<div class="window layer2">
+  <div class="accent"></div>
+  <div class="actual">
+    <h2 class="header">
+      Help
+      <span class="collapse"></span>
+    </h2>
     <div class="content">
       <p>
         Viewer commands are accessible to subscribers and chatters based on configuration.
@@ -42,21 +60,6 @@
           </ul>
         </li>
       </ul>
-    </div>
-  </div>
-</div>
-<div class="window layer2 theme-twitch">
-  <div class="accent"></div>
-  <div class="actual">
-    <h2 class="header">Channel {{ form.instance.twitch_login }}</h2>
-    <div class="content">
-      <form class="clip">
-{#            <form method="post" action="{% url "core:twitch_update" form.instance.pk %}">#}
-        {% with form=twitch_integration_form %}
-          {% csrf_token %}
-          {% include "core/integrations/twitch/form.html" %}
-        {% endwith %}
-      </form>
     </div>
   </div>
 </div>

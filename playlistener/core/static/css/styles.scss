@@ -51,11 +51,20 @@ body {
       a {
         color: inherit;
       }
+
+      .collapse {
+        float: right;
+        cursor: pointer;
+        user-select: none;
+      }
+    }
+
+    & > .header + .content {
+      padding-top: $content-margin;
     }
 
     & > .content {
       margin: $content-margin;
-      padding-top: $content-margin;
 
       & > *:first-child {
         margin-top: 0;
@@ -64,6 +73,10 @@ body {
       & > *:last-child {
         margin-bottom: 0;
       }
+    }
+
+    &.collapsed > .content {
+      display: none;
     }
   }
 }

@@ -90,3 +90,15 @@ window.addEventListener("load", () => {
     element.innerText = formatDateTime(date, true, true);
   }
 });
+
+window.addEventListener("load", () => {
+  for (const element of document.getElementsByClassName("collapse")) {
+    element.innerHTML = "&#x25B4;";
+    let toggle = () => {
+      let collapsed = element.parentElement.parentElement.classList.toggle("collapsed");
+      element.innerHTML = collapsed ? "&#x25BE;" : "&#x25B4;";
+    };
+    element.addEventListener("click", toggle);
+    toggle();
+  }
+});

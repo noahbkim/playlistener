@@ -16,7 +16,22 @@
 {% endblock %}
 
 {% block content %}
-<h1>Dashboard</h1>
+<div class="window layer1 theme-playlistener">
+  <div class="accent"></div>
+  <div class="actual">
+    <h1 class="header">Dashboard</h1>
+    <div class="content">
+      <p>
+        Hi, {{ request.user.first_name }}!
+        Welcome back.
+        As always, if you have any questions or need support, please reach out to Noah via email or Discord.
+      </p>
+      <div class="form-group buttons">
+        <a class="button float-right" href="{% url "core:logout" %}">Logout</a>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="window layer1 theme-twitch">
   <div class="accent twitch"></div>
   <div class="actual">
@@ -29,8 +44,5 @@
       {% endif %}
     </div>
   </div>
-</div>
-<div class="windowless form-group buttons">
-  <a class="button float-right" href="{% url "core:logout" %}">Logout</a>
 </div>
 {% endblock %}

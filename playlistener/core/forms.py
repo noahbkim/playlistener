@@ -1,6 +1,5 @@
 import django.contrib.auth.forms
 from django import forms
-from django.db.models import Q
 
 from common.errors import InternalError, UsageError
 from . import models
@@ -16,7 +15,6 @@ class UserCreationForm(django.contrib.auth.forms.UserCreationForm):
         invitation = models.Invitation.objects.filter(username=email).first()
         if invitation is None:
             raise forms.ValidationError(f"No invitation found for {email}")
-        self.cleaned_data["username"] = email
         return email
 
     class Meta(django.contrib.auth.forms.UserCreationForm.Meta):
@@ -47,6 +45,8 @@ class TwitchIntegrationForm(forms.ModelForm):
         """Validate that the playlist exists."""
 
         playlist_id = self.cleaned_data["playlist_id"]
+        if playlist_id is None:
+            return ""
 
         try:
             playlist_data = self.instance.user.spotify.get_playlist(playlist_id)
@@ -63,13 +63,11 @@ class TwitchIntegrationForm(forms.ModelForm):
     def clean(self) -> dict:
         """Also validate the twitch_login is unique."""
 
-        if models.TwitchIntegration.objects.filter(
-            ~Q(pk=self.instance.pk) &
-            (Q(twitch_login=self.instance.twitch_login) | Q(twitch_id=self.instance.twitch_id))
-        ).exists():
-            raise forms.ValidationError(f"Twitch account {self.instance.twitch_login} is already in use!")
+        cleaned_data = super().clean()
+        if cleaned_data["add_to_playlist"] and cleaned_data["playlist_id"] == "":
+            raise forms.ValidationError("A playlist must be specified if \"add to playlist\" is enabled!")
 
-        return super().clean()
+        return cleaned_data
 
     class Meta:
         model = models.TwitchIntegration

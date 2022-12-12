@@ -25,21 +25,23 @@
         </ul>
         {% endif %}
         {% csrf_token %}
-        <div class="form-space"></div>
-        <div class="hint form-group">
-          <h3>Personal Information</h3>
+        <div class="form-group">
           <p>
-            All we need is an email for contact and a first and last name for UI details.
-            Your data won't be used for anything else.
+            Your email will only be used to reach out to you for technical support and platforms alerts.
+            Feel free to use a preferred name, as it'll only be used for contact and UI elements.
           </p>
         </div>
         <div class="form-group">
-          <label for="email">Email</label>
+          <label for="username">Username*</label>
+          <input id="username" name="username" type="text">
+        </div>
+        <div class="form-group">
+          <label for="email">Email*</label>
           <input id="email" name="email" type="email">
         </div>
         <div class="form-group split even">
           <div>
-            <label for="first-name">First name</label>
+            <label for="first-name">First name*</label>
             <input id="first-name" name="first_name" type="text">
           </div>
           <div>
@@ -48,16 +50,16 @@
           </div>
         </div>
         <div class="form-space"></div>
-        <div class="hint form-group">
+        <div class="form-group">
           <h3>Password</h3>
           {{ form.password1.help_text }}
         </div>
         <div class="form-group">
-          <label for="password1">Password</label>
+          <label for="password1">Password*</label>
           <input id="password1" name="password1" type="password">
         </div>
         <div class="form-group">
-          <label for="password2">Password confirmation</label>
+          <label for="password2">Password confirmation*</label>
           <input id="password2" name="password2" type="password">
         </div>
         <div class="form-group buttons">

@@ -9,13 +9,16 @@
   <div class="actual">
     <h2 class="header">Options</h2>
     <div class="content">
-      <form class="clip">
-{#            <form method="post" action="{% url "core:twitch_update" form.instance.pk %}">#}
-        {% with form=twitch_integration_form %}
+      {% with form=twitch_integration_form %}
+        <form method="post" action="{% url "core:twitch_integration_update" form.instance.pk %}" class="clip">
           {% csrf_token %}
           {% include "core/integrations/twitch/form.html" %}
-        {% endwith %}
-      </form>
+          <div class="form-group buttons">
+            <a class="button accent" href="{% url "core:twitch_integration_delete" form.instance.pk %}">Remove</a>
+            <button class="primary" type="submit">Update</button>
+          </div>
+        </form>
+      {% endwith %}
     </div>
   </div>
 </div>
@@ -39,7 +42,7 @@
         <li><code>?count</code> see how many songs you've queued.</li>
       </ul>
       <p>
-        Admin commands are accessible to mods and, of course, you the streamer.
+        Admin commands are accessible to mods and, of course, you, the streamer.
         The integration may be configured in real-time via the form below as well.
       </p>
       <ul>

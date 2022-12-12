@@ -1,5 +1,6 @@
 {% extends "shared/default.html" %}
 {% load static %}
+{% load flow %}
 
 {% block head %}
 <script type="text/javascript">
@@ -40,7 +41,14 @@
       {% if twitch_integration %}
         {% include "core/integrations/twitch/index.html" %}
       {% else %}
-        <a class="button primary" href="{% url "core:flow_twitch_integration" %}">Set up Twitch integration</a>
+        {% flow twitch_integration_flow %}
+        <p>
+          Now that you've created your account, it's time to set up Playlistener's Twitch chat integration.
+          This will involve allowing servers to access your Spotify and Twitch accounts as well as configuring the chatbot.
+        </p>
+        <div class="form-group buttons">
+          <a class="button primary" href="{% url twitch_integration_step.view %}?flow=twitch_integration">{{ twitch_integration_step.title|capfirst }}</a>
+        </div>
       {% endif %}
     </div>
   </div>

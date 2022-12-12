@@ -100,6 +100,10 @@ button,
     @include button-outlined($color-accent);
   }
 
+  &.accent-solid {
+    @include button-solid($color-accent-inverse, $color-accent);
+  }
+
   &:disabled, &.disabled {
     background-color: #CCC;
     border-color: #CCC;

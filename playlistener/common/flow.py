@@ -1,6 +1,5 @@
 from django.http.request import HttpRequest
 from django.utils.safestring import mark_safe
-from django.urls import reverse
 from django import template
 
 from typing import Any, Callable, Optional
@@ -8,6 +7,9 @@ from dataclasses import dataclass, field
 
 
 register = template.Library()
+
+CHECK = "&#10003;"
+X = "&#10007;"
 
 
 @dataclass
@@ -86,12 +88,13 @@ class FlowViewMixin:
 
 
 @register.simple_tag(takes_context=True, name="flow")
-def _flow(context: dict[str, Any]) -> str:
+def _flow(context: dict[str, Any], flow: Optional[Flow] = None) -> str:
     """Generate a step list with colors."""
 
-    flow: Flow = context.get("flow")
     if flow is None:
-        return ""
+        flow = context.get("flow")
+        if flow is None:
+            return ""
 
     current_step: Step = context.get("step")
 
@@ -99,13 +102,13 @@ def _flow(context: dict[str, Any]) -> str:
     last_step: Optional[Step] = None
     for i, (name, step) in enumerate(flow.steps.items()):
         done = step.done is None or step.done(context["request"])
-        is_current = name == current_step.name
+        is_current = current_step is not None and name == current_step.name
 
         if i > 0:
             theme = f"{last_step.theme}-{step.theme}" if done or is_current else "disabled"
             elements.append(f"""<div class="link {theme}"></div>""")
 
-        text = "&#10003;" if done else context.get("step_state", "") if is_current else ""
+        text = CHECK if done else context.get("step_state", "") if is_current else ""
         theme = step.theme if done or is_current else "disabled"
         elements.append(
             f"""<div class="step {theme}">"""

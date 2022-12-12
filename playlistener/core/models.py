@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.conf import settings
 from django.http.request import HttpRequest
+from django.db.models import Q
 
 import requests
 import base64
@@ -328,6 +329,13 @@ class TwitchIntegration(Integration):
     add_to_queue = models.BooleanField(default=False)
     add_to_playlist = models.BooleanField(default=True)
     playlist_id = models.CharField(max_length=50, null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=(Q(add_to_playlist=False) | Q(add_to_playlist=True) & ~Q(playlist_id=None)),
+                name="require_playlist")
+        ]
 
 
 class TwitchIntegrationUser(models.Model):

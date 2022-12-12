@@ -12,9 +12,26 @@
   <div class="actual">
     <h1 class="header">Add Twitch Integration</h1>
     <div class="content">
+      <div class="form-group">
+        <p>
+          <strong>Please provide a Spotify playlist to add queued songs to.</strong>
+          To set the playlist ID, you can paste your Spotify playlist's URL into the text box and the playlist ID will be automatically detected.
+        </p>
+        <p>
+          Don't worry, these settings can be changed later!
+        </p>
+      </div>
       <form method="post">
         {% csrf_token %}
         {% include "core/integrations/twitch/form.html" %}
+        <div class="form-group buttons">
+          <a class="button accent" href="{% url "core:index" %}">Cancel</a>
+          {% if form.instance.pk %}
+            <button class="primary" type="submit">Update</button>
+          {% else %}
+            <button class="primary" type="submit">Create</button>
+          {% endif %}
+        </div>
       </form>
     </div>
   </div>

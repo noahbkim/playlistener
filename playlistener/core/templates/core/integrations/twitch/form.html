@@ -1,9 +1,3 @@
-{% if not form.instance %}
-<p>
-  Don't worry, these settings can be changed later!
-  To set the playlist ID, you can paste your Spotify playlist's URL into the text box--the playlist ID will be automatically detected.
-</p>
-{% endif %}
 {% if form.errors %}
 <ul class="errors">
   {% for error in form.non_field_errors %}
@@ -85,17 +79,8 @@
   </div>
   <div style="flex: 3;">
     <label for="playlist-id">
-      <span>Playlist</span>
+      <span>Playlist*</span>
       <a class="playlist-link float-right" target="_blank" href="https://open.spotify.com/playlist/{{ form.playlist_id.value }}">https://open.spotify.com/playlist/</a>    </label>
     <input type="text" id="playlist-id" class="playlist-id" name="playlist_id" value="{{ form.playlist_id.value|default_if_none:"" }}">
   </div>
-</div>
-<div class="form-group buttons">
-  {% if form.instance.pk %}
-  <a class="button accent" href="{% url "core:twitch_delete" form.instance.pk %}">Remove</a>
-  <button class="primary" type="submit">Update</button>
-  {% else %}
-  <a class="button accent" href="{% url "core:index" %}">Back</a>
-  <button class="primary" type="submit">Create</button>
-  {% endif %}
 </div>

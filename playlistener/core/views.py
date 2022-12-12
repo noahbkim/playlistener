@@ -11,7 +11,7 @@ from django.urls import reverse
 
 import logging
 
-from common.oauth import get_view_url, OAuthStartView, OAuthReceiveView
+from common.oauth import OAuthStartView, OAuthReceiveView
 from common.errors import InternalError
 from common.flow import Flow, Step, FlowViewMixin, copy_query
 from .models import SpotifyAuthorization, TwitchAuthorization, TwitchIntegration
@@ -151,24 +151,19 @@ class IndexView(LoginRequiredMixin, TemplateView):
         """Get authorization and integration."""
 
         context = super().get_context_data(**kwargs)
+
         twitch_integration = TwitchIntegration.objects.filter(user=self.request.user).first()
-        context.update(
-            twitch_integration=twitch_integration,
-            twitch_integration_form=TwitchIntegrationForm(instance=twitch_integration))
-        return context
+        context["twitch_integration"] = twitch_integration
+        if twitch_integration is None:
+            next_step = None
+            for next_step in TWITCH_INTEGRATION_FLOW.steps.values():
+                if not next_step.done(self.request):
+                    break
+            context["twitch_integration_flow"] = TWITCH_INTEGRATION_FLOW
+            context["twitch_integration_step"] = next_step
+        else:
+            context["twitch_integration_form"] = TwitchIntegrationForm(instance=twitch_integration)
 
-
-class TwitchIntegrationFlowView(FlowViewMixin, LoginRequiredMixin, TemplateView):
-    """Start integration goal."""
-
-    template_name = "core/flow/twitch_integration.html"
-    step = "register"
-
-    def get_context_data(self, **kwargs):
-        """Get static goal."""
-
-        context = super().get_context_data(**kwargs)
-        context.update(flow=TWITCH_INTEGRATION_FLOW, step=TWITCH_INTEGRATION_FLOW.steps["register"])
         return context
 
 
@@ -356,7 +351,7 @@ class TwitchIntegrationDeleteView(LoginRequiredMixin, DeleteView):
     """Allow modification and deletion."""
 
     queryset = TwitchIntegration.objects
-    template_name = "core/integrations/delete/templates/core/integrations/twitch/twitch_confirm_delete.html"
+    template_name = "core/integrations/twitch/delete.html"
 
     def get_success_url(self):
         """Go back to index."""

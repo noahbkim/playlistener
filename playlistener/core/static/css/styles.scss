@@ -142,3 +142,9 @@ body {
     }
   }
 }
+
+code {
+  background-color: $layer3-color-background-hover;
+  padding: 1px 2px;
+  border-radius: 3px;
+}

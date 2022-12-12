@@ -6,14 +6,14 @@
 <div class="window layer1 theme-twitch">
   <div class="accent"></div>
   <div class="actual">
-    <h1 class="header">Login</h1>
+    <h1 class="header">Delete Integration</h1>
     <div class="content">
-      <p>Confirm deletion of Twitch integration for channel <code>{{ object.channel }}</code>?</p>
+      <p class="form-group">Are you sure you want to delete your Twitch integration?</p>
       <form method="post">
         {% csrf_token %}
         <div class="form-group buttons">
           <a class="button secondary" href="{% url "core:index" %}">Cancel</a>
-          <button type="submit" class="button accent">Delete</button>
+          <button type="submit" class="button accent-solid">Delete</button>
         </div>
       </form>
     </div>
